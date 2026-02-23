@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Psalms 133 (KJV)</title>
+    <meta name="description" content="A serene presentation of Psalms Chapter 133 (KJV) with gentle ambient tone and enhanced visuals.">
+
+    <link href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,700;1,400&family=Great+Vibes&display=swap" rel="stylesheet">
+    <link href="chapter-template.css" rel="stylesheet">
+
+    <style>
+        :root { --bg-hue: 207; }
+    </style>
+</head>
+<body>
+    <audio id="narration" preload="auto">
+        <source src="../audio/19_Psalms/19234%200_KJV_Bible-Psalms133.mp3" type="audio/mpeg">
+
+        Your browser does not support the audio element.
+    </audio>
+
+    <div id="intro-screen">
+        <div id="intro-text">Psalms 133</div>
+        <div class="subtitle intro-hint">Click to listen</div>
+    </div>
+
+    <div id="main-container">
+        <h1><a href="index.html">Psalms 133</a></h1>
+        <p class="subtitle">King James Version (KJV)</p>
+
+        <div class="verses">
+            <p class="verse" id="v-19-133-001" data-verse-ref="KJV.19.133.001"><span class="verse-number">1</span>A Song of degrees of David. Behold, how good and how pleasant it is for brethren to dwell together in unity!</p>
+            <p class="verse" id="v-19-133-002" data-verse-ref="KJV.19.133.002"><span class="verse-number">2</span>It is like the precious ointment upon the head, that ran down upon the beard, even Aaron's beard: that went down to the skirts of his garments;</p>
+            <p class="verse" id="v-19-133-003" data-verse-ref="KJV.19.133.003"><span class="verse-number">3</span>As the dew of Hermon, and as the dew that descended upon the mountains of Zion: for there the LORD commanded the blessing, even life for evermore.</p>
+        </div>
+
+        <div class="credits">
+            Verses: <a href="https://biblehub.com/" target="_blank" rel="noopener">BibleHub (KJV)</a>. Audio: <a href="https://mp3bible.ca/" target="_blank" rel="noopener">mp3bible.ca</a>. Thank you.
+        </div>
+
+        <div class="learn-more">
+            <a href="https://biblehub.com/kjv/psalms/133.htm" target="_blank">Learn more</a>
+        </div>
+
+        <div class="chapter-nav">
+            <a class="nav-btn" href="Psalms132.html">← Previous</a>
+            <a class="nav-btn" href="Psalms134.html">Next →</a>
+        </div>
+    </div>
+
+
+
+    <script src="../ambient-pad.js"></script>
+
+    <!-- Timing mode + auto-init (press `t` to toggle timing mode) -->
+    <script
+        src="../verse-timing-recorder.js"
+        data-doufts-autoinit
+        data-save-url="/api/timing"
+        data-book-folder="Psalms"
+        data-book-order="19"
+        data-chapter="133"
+        data-storage-key="doufts:kjv:19:133:highlightTimes"
+    ></script>
+
+    <!-- Shared behavior for all chapters -->
+    <script src="chapter-template.js"></script>
+</body>
+</html>

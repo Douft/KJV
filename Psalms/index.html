@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Psalms Index</title>
+    <meta name="description" content="Index of Psalms chapters (KJV).">
+    <link href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,700;1,400&family=Great+Vibes&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            font-family: 'Alegreya', serif;
+            color: #f5f0e8;
+            --bg-hue: 186;
+            --bg-hue2: calc(var(--bg-hue) + 22);
+            --cross-x: 50%;
+            --cross-y: 44%;
+            --cross-w: 18px;
+            --cross-h: 14px;
+            --cross-mark-w: 240px;
+            --cross-mark-h: 360px;
+            --cross-mark-y: 40%;
+            background-image:
+                radial-gradient(720px 520px at var(--cross-x) var(--cross-y), rgba(255, 215, 0, 0.18), transparent 60%),
+                radial-gradient(1100px 700px at 15% 25%, hsla(var(--bg-hue), 75%, 70%, 0.45), transparent 60%),
+                radial-gradient(900px 640px at 85% 30%, hsla(var(--bg-hue2), 70%, 65%, 0.38), transparent 62%),
+                radial-gradient(700px 520px at 30% 85%, hsla(calc(var(--bg-hue) + 55), 70%, 60%, 0.28), transparent 60%),
+                linear-gradient(to bottom, hsl(var(--bg-hue), 55%, 55%), hsl(calc(var(--bg-hue) + 10), 55%, 45%), hsl(calc(var(--bg-hue) + 25), 55%, 60%));
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(10, 40, 80, 0.28);
+            backdrop-filter: blur(5px);
+            z-index: 0;
+        }
+
+        /* Draw a bounded upright cross (not a full-screen plus) */
+        body::after {
+            content: '';
+            position: fixed;
+            left: var(--cross-x);
+            top: var(--cross-mark-y);
+            transform: translate(-50%, -50%);
+            width: var(--cross-mark-w);
+            height: var(--cross-mark-h);
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.95;
+            background:
+                radial-gradient(closest-side at 50% 42%, rgba(255, 215, 0, 0.18), transparent 70%),
+                linear-gradient(90deg,
+                    transparent calc(50% - var(--cross-w)),
+                    rgba(255, 240, 190, 0.10) calc(50% - var(--cross-w)),
+                    rgba(255, 215, 0, 0.34) 50%,
+                    rgba(255, 240, 190, 0.10) calc(50% + var(--cross-w)),
+                    transparent calc(50% + var(--cross-w))
+                ),
+                linear-gradient(180deg,
+                    transparent calc(34% - var(--cross-h)),
+                    rgba(255, 240, 190, 0.10) calc(34% - var(--cross-h)),
+                    rgba(255, 215, 0, 0.30) 34%,
+                    rgba(255, 240, 190, 0.10) calc(34% + var(--cross-h)),
+                    transparent calc(34% + var(--cross-h))
+                );
+            filter: drop-shadow(0 0 24px rgba(255, 215, 0, 0.20));
+        }
+
+        #container {
+            position: relative;
+            z-index: 1;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            max-width: 90vw;
+            width: 950px;
+            padding: 70px 40px;
+            border-radius: 40px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25), inset 0 0 80px rgba(255, 255, 255, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            text-align: center;
+            max-height: 92vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            animation: gentleGlow 12s ease-in-out infinite alternate;
+            box-sizing: border-box;
+        }
+
+        @keyframes gentleGlow {
+            from { box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25), inset 0 0 80px rgba(255, 255, 255, 0.25); }
+            to { box-shadow: 0 15px 60px rgba(255, 215, 0, 0.35), inset 0 0 100px rgba(255, 255, 255, 0.4); }
+        }
+
+        h1 {
+            font-family: 'Great Vibes', cursive;
+            font-size: clamp(3.2rem, 11vw, 5.5rem);
+            color: #ffd700;
+            margin: 0 0 18px;
+            text-shadow: 0 0 25px rgba(255, 255, 255, 0.9), 3px 3px 10px rgba(0,0,0,0.5);
+        }
+
+        .subtitle {
+            font-style: italic;
+            margin: 0 auto 20px;
+            font-size: clamp(1.2rem, 4vw, 1.6rem);
+            color: #fff8d0;
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.7);
+            max-width: 46ch;
+        }
+
+        .chapter-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+            margin: 0 auto;
+            max-width: 720px;
+        }
+
+        .chapter-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 56px;
+            padding: 12px 14px;
+            border-radius: 16px;
+            text-decoration: none;
+            color: #ffefb0;
+            border: 1px solid rgba(255, 215, 0, 0.5);
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            transition: all 0.35s ease;
+            font-size: clamp(1rem, 2.8vw, 1.2rem);
+        }
+
+        .chapter-link:hover {
+            color: #ffffff;
+            text-shadow: 0 0 18px #ffd700;
+            border-color: rgba(255, 215, 0, 0.95);
+            transform: translateY(-1px);
+        }
+
+        @media (max-width: 768px) {
+            #container {
+                width: 95vw;
+                padding: 34px 20px;
+                border-radius: 30px;
+            }
+            .chapter-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 480px) {
+            #container {
+                padding: 28px 16px;
+            }
+            .chapter-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>Psalms</h1>
+        <p class="subtitle">Select a chapter to read and listen (KJV).</p>
+
+        <div style="display:flex; justify-content:center; margin: 0 auto 22px; max-width: 720px;">
+            <a class="chapter-link" href="../index.html" style="min-height:46px; width: 100%; max-width: 260px;">Bible Index</a>
+        </div>
+
+        <div class="chapter-grid" aria-label="Psalms chapter index">
+            <a class="chapter-link" href="Psalms1.html">Chapter 1</a>
+            <a class="chapter-link" href="Psalms2.html">Chapter 2</a>
+            <a class="chapter-link" href="Psalms3.html">Chapter 3</a>
+            <a class="chapter-link" href="Psalms4.html">Chapter 4</a>
+            <a class="chapter-link" href="Psalms5.html">Chapter 5</a>
+            <a class="chapter-link" href="Psalms6.html">Chapter 6</a>
+            <a class="chapter-link" href="Psalms7.html">Chapter 7</a>
+            <a class="chapter-link" href="Psalms8.html">Chapter 8</a>
+            <a class="chapter-link" href="Psalms9.html">Chapter 9</a>
+            <a class="chapter-link" href="Psalms10.html">Chapter 10</a>
+            <a class="chapter-link" href="Psalms11.html">Chapter 11</a>
+            <a class="chapter-link" href="Psalms12.html">Chapter 12</a>
+            <a class="chapter-link" href="Psalms13.html">Chapter 13</a>
+            <a class="chapter-link" href="Psalms14.html">Chapter 14</a>
+            <a class="chapter-link" href="Psalms15.html">Chapter 15</a>
+            <a class="chapter-link" href="Psalms16.html">Chapter 16</a>
+            <a class="chapter-link" href="Psalms17.html">Chapter 17</a>
+            <a class="chapter-link" href="Psalms18.html">Chapter 18</a>
+            <a class="chapter-link" href="Psalms19.html">Chapter 19</a>
+            <a class="chapter-link" href="Psalms20.html">Chapter 20</a>
+            <a class="chapter-link" href="Psalms21.html">Chapter 21</a>
+            <a class="chapter-link" href="Psalms22.html">Chapter 22</a>
+            <a class="chapter-link" href="Psalms23.html">Chapter 23</a>
+            <a class="chapter-link" href="Psalms24.html">Chapter 24</a>
+            <a class="chapter-link" href="Psalms25.html">Chapter 25</a>
+            <a class="chapter-link" href="Psalms26.html">Chapter 26</a>
+            <a class="chapter-link" href="Psalms27.html">Chapter 27</a>
+            <a class="chapter-link" href="Psalms28.html">Chapter 28</a>
+            <a class="chapter-link" href="Psalms29.html">Chapter 29</a>
+            <a class="chapter-link" href="Psalms30.html">Chapter 30</a>
+            <a class="chapter-link" href="Psalms31.html">Chapter 31</a>
+            <a class="chapter-link" href="Psalms32.html">Chapter 32</a>
+            <a class="chapter-link" href="Psalms33.html">Chapter 33</a>
+            <a class="chapter-link" href="Psalms34.html">Chapter 34</a>
+            <a class="chapter-link" href="Psalms35.html">Chapter 35</a>
+            <a class="chapter-link" href="Psalms36.html">Chapter 36</a>
+            <a class="chapter-link" href="Psalms37.html">Chapter 37</a>
+            <a class="chapter-link" href="Psalms38.html">Chapter 38</a>
+            <a class="chapter-link" href="Psalms39.html">Chapter 39</a>
+            <a class="chapter-link" href="Psalms40.html">Chapter 40</a>
+            <a class="chapter-link" href="Psalms41.html">Chapter 41</a>
+            <a class="chapter-link" href="Psalms42.html">Chapter 42</a>
+            <a class="chapter-link" href="Psalms43.html">Chapter 43</a>
+            <a class="chapter-link" href="Psalms44.html">Chapter 44</a>
+            <a class="chapter-link" href="Psalms45.html">Chapter 45</a>
+            <a class="chapter-link" href="Psalms46.html">Chapter 46</a>
+            <a class="chapter-link" href="Psalms47.html">Chapter 47</a>
+            <a class="chapter-link" href="Psalms48.html">Chapter 48</a>
+            <a class="chapter-link" href="Psalms49.html">Chapter 49</a>
+            <a class="chapter-link" href="Psalms50.html">Chapter 50</a>
+            <a class="chapter-link" href="Psalms51.html">Chapter 51</a>
+            <a class="chapter-link" href="Psalms52.html">Chapter 52</a>
+            <a class="chapter-link" href="Psalms53.html">Chapter 53</a>
+            <a class="chapter-link" href="Psalms54.html">Chapter 54</a>
+            <a class="chapter-link" href="Psalms55.html">Chapter 55</a>
+            <a class="chapter-link" href="Psalms56.html">Chapter 56</a>
+            <a class="chapter-link" href="Psalms57.html">Chapter 57</a>
+            <a class="chapter-link" href="Psalms58.html">Chapter 58</a>
+            <a class="chapter-link" href="Psalms59.html">Chapter 59</a>
+            <a class="chapter-link" href="Psalms60.html">Chapter 60</a>
+            <a class="chapter-link" href="Psalms61.html">Chapter 61</a>
+            <a class="chapter-link" href="Psalms62.html">Chapter 62</a>
+            <a class="chapter-link" href="Psalms63.html">Chapter 63</a>
+            <a class="chapter-link" href="Psalms64.html">Chapter 64</a>
+            <a class="chapter-link" href="Psalms65.html">Chapter 65</a>
+            <a class="chapter-link" href="Psalms66.html">Chapter 66</a>
+            <a class="chapter-link" href="Psalms67.html">Chapter 67</a>
+            <a class="chapter-link" href="Psalms68.html">Chapter 68</a>
+            <a class="chapter-link" href="Psalms69.html">Chapter 69</a>
+            <a class="chapter-link" href="Psalms70.html">Chapter 70</a>
+            <a class="chapter-link" href="Psalms71.html">Chapter 71</a>
+            <a class="chapter-link" href="Psalms72.html">Chapter 72</a>
+            <a class="chapter-link" href="Psalms73.html">Chapter 73</a>
+            <a class="chapter-link" href="Psalms74.html">Chapter 74</a>
+            <a class="chapter-link" href="Psalms75.html">Chapter 75</a>
+            <a class="chapter-link" href="Psalms76.html">Chapter 76</a>
+            <a class="chapter-link" href="Psalms77.html">Chapter 77</a>
+            <a class="chapter-link" href="Psalms78.html">Chapter 78</a>
+            <a class="chapter-link" href="Psalms79.html">Chapter 79</a>
+            <a class="chapter-link" href="Psalms80.html">Chapter 80</a>
+            <a class="chapter-link" href="Psalms81.html">Chapter 81</a>
+            <a class="chapter-link" href="Psalms82.html">Chapter 82</a>
+            <a class="chapter-link" href="Psalms83.html">Chapter 83</a>
+            <a class="chapter-link" href="Psalms84.html">Chapter 84</a>
+            <a class="chapter-link" href="Psalms85.html">Chapter 85</a>
+            <a class="chapter-link" href="Psalms86.html">Chapter 86</a>
+            <a class="chapter-link" href="Psalms87.html">Chapter 87</a>
+            <a class="chapter-link" href="Psalms88.html">Chapter 88</a>
+            <a class="chapter-link" href="Psalms89.html">Chapter 89</a>
+            <a class="chapter-link" href="Psalms90.html">Chapter 90</a>
+            <a class="chapter-link" href="Psalms91.html">Chapter 91</a>
+            <a class="chapter-link" href="Psalms92.html">Chapter 92</a>
+            <a class="chapter-link" href="Psalms93.html">Chapter 93</a>
+            <a class="chapter-link" href="Psalms94.html">Chapter 94</a>
+            <a class="chapter-link" href="Psalms95.html">Chapter 95</a>
+            <a class="chapter-link" href="Psalms96.html">Chapter 96</a>
+            <a class="chapter-link" href="Psalms97.html">Chapter 97</a>
+            <a class="chapter-link" href="Psalms98.html">Chapter 98</a>
+            <a class="chapter-link" href="Psalms99.html">Chapter 99</a>
+            <a class="chapter-link" href="Psalms100.html">Chapter 100</a>
+            <a class="chapter-link" href="Psalms101.html">Chapter 101</a>
+            <a class="chapter-link" href="Psalms102.html">Chapter 102</a>
+            <a class="chapter-link" href="Psalms103.html">Chapter 103</a>
+            <a class="chapter-link" href="Psalms104.html">Chapter 104</a>
+            <a class="chapter-link" href="Psalms105.html">Chapter 105</a>
+            <a class="chapter-link" href="Psalms106.html">Chapter 106</a>
+            <a class="chapter-link" href="Psalms107.html">Chapter 107</a>
+            <a class="chapter-link" href="Psalms108.html">Chapter 108</a>
+            <a class="chapter-link" href="Psalms109.html">Chapter 109</a>
+            <a class="chapter-link" href="Psalms110.html">Chapter 110</a>
+            <a class="chapter-link" href="Psalms111.html">Chapter 111</a>
+            <a class="chapter-link" href="Psalms112.html">Chapter 112</a>
+            <a class="chapter-link" href="Psalms113.html">Chapter 113</a>
+            <a class="chapter-link" href="Psalms114.html">Chapter 114</a>
+            <a class="chapter-link" href="Psalms115.html">Chapter 115</a>
+            <a class="chapter-link" href="Psalms116.html">Chapter 116</a>
+            <a class="chapter-link" href="Psalms117.html">Chapter 117</a>
+            <a class="chapter-link" href="Psalms118.html">Chapter 118</a>
+            <a class="chapter-link" href="Psalms119.html">Chapter 119</a>
+            <a class="chapter-link" href="Psalms120.html">Chapter 120</a>
+            <a class="chapter-link" href="Psalms121.html">Chapter 121</a>
+            <a class="chapter-link" href="Psalms122.html">Chapter 122</a>
+            <a class="chapter-link" href="Psalms123.html">Chapter 123</a>
+            <a class="chapter-link" href="Psalms124.html">Chapter 124</a>
+            <a class="chapter-link" href="Psalms125.html">Chapter 125</a>
+            <a class="chapter-link" href="Psalms126.html">Chapter 126</a>
+            <a class="chapter-link" href="Psalms127.html">Chapter 127</a>
+            <a class="chapter-link" href="Psalms128.html">Chapter 128</a>
+            <a class="chapter-link" href="Psalms129.html">Chapter 129</a>
+            <a class="chapter-link" href="Psalms130.html">Chapter 130</a>
+            <a class="chapter-link" href="Psalms131.html">Chapter 131</a>
+            <a class="chapter-link" href="Psalms132.html">Chapter 132</a>
+            <a class="chapter-link" href="Psalms133.html">Chapter 133</a>
+            <a class="chapter-link" href="Psalms134.html">Chapter 134</a>
+            <a class="chapter-link" href="Psalms135.html">Chapter 135</a>
+            <a class="chapter-link" href="Psalms136.html">Chapter 136</a>
+            <a class="chapter-link" href="Psalms137.html">Chapter 137</a>
+            <a class="chapter-link" href="Psalms138.html">Chapter 138</a>
+            <a class="chapter-link" href="Psalms139.html">Chapter 139</a>
+            <a class="chapter-link" href="Psalms140.html">Chapter 140</a>
+            <a class="chapter-link" href="Psalms141.html">Chapter 141</a>
+            <a class="chapter-link" href="Psalms142.html">Chapter 142</a>
+            <a class="chapter-link" href="Psalms143.html">Chapter 143</a>
+            <a class="chapter-link" href="Psalms144.html">Chapter 144</a>
+            <a class="chapter-link" href="Psalms145.html">Chapter 145</a>
+            <a class="chapter-link" href="Psalms146.html">Chapter 146</a>
+            <a class="chapter-link" href="Psalms147.html">Chapter 147</a>
+            <a class="chapter-link" href="Psalms148.html">Chapter 148</a>
+            <a class="chapter-link" href="Psalms149.html">Chapter 149</a>
+            <a class="chapter-link" href="Psalms150.html">Chapter 150</a>
+        </div>
+
+        <p class="subtitle" style="margin-top: 26px;">
+            Verses: <a href="https://biblehub.com/" target="_blank" rel="noopener">BibleHub (KJV)</a>. Audio: <a href="https://mp3bible.ca/" target="_blank" rel="noopener">mp3bible.ca</a>. Thank you.
+        </p>
+    </div>
+</body>
+</html>

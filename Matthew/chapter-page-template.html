@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- TODO: update chapter number -->
+    <title>Matthew {{CHAPTER_NUMBER}} (KJV)</title>
+
+    <!-- TODO: update description if you want -->
+    <meta name="description" content="A serene presentation of Matthew Chapter {{CHAPTER_NUMBER}} (KJV) with gentle ambient tone and enhanced visuals.">
+
+    <link href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,700;1,400&family=Great+Vibes&display=swap" rel="stylesheet">
+    <link href="chapter-template.css" rel="stylesheet">
+
+    <style>
+        /* Optional per-chapter overrides */
+        /* :root { --bg-hue: 210; } */
+    </style>
+</head>
+<body>
+    <audio id="narration" preload="auto">
+        <!-- TODO: point this at your LOCAL MP3 (mp3bible.ca library). Example:
+             <source src="../audio/40_Matthew/<filename ending in {{CHAPTER_NUMBER as 3 digits}}.mp3>" type="audio/mpeg">
+        -->
+        Your browser does not support the audio element.
+    </audio>
+
+    <div id="intro-screen">
+        <!-- TODO: update chapter number -->
+        <div id="intro-text">Matthew {{CHAPTER_NUMBER}}</div>
+        <div class="subtitle intro-hint">Click to listen</div>
+    </div>
+
+    <div id="main-container">
+        <!-- TODO: update chapter number -->
+        <h1><a href="index.html">Matthew {{CHAPTER_NUMBER}}</a></h1>
+
+        <!-- TODO: update subtitle/sections summary -->
+        <p class="subtitle">{{SUBTITLE_SUMMARY}}</p>
+
+        <div class="verses">
+            <!-- TODO: replace verses. Keep the same structure. -->
+            <p class="verse"><span class="verse-number">1</span>{{VERSE_1_TEXT}}</p>
+            <p class="verse"><span class="verse-number">2</span>{{VERSE_2_TEXT}}</p>
+        </div>
+
+        <div class="credits">
+            Verses via <a href="https://biblehub.com/" target="_blank" rel="noopener noreferrer">BibleHub</a>. Audio narration thanks to <a href="https://mp3bible.ca/" target="_blank" rel="noopener noreferrer">mp3bible.ca</a>.
+        </div>
+
+        <div class="learn-more">
+            <!-- TODO: update chapter number -->
+            <a href="https://biblehub.com/kjv/matthew/{{CHAPTER_NUMBER}}.htm" target="_blank">Learn more</a>
+        </div>
+
+        <div class="chapter-nav">
+            <!-- TODO: set previous/next links; use disabled style when needed -->
+            <a class="nav-btn" href="{{PREV_CHAPTER_FILE}}">← Previous</a>
+            <a class="nav-btn" href="{{NEXT_CHAPTER_FILE}}">Next →</a>
+        </div>
+    </div>
+
+    <!-- TODO: paste your recorded timings here.
+         For chapter-template.js, the array should contain one start-time per verse.
+         Example: [0, 5.123, 10.456, ...]
+    -->
+    <script type="application/json" id="highlight-times">[]</script>
+
+    <script src="../ambient-pad.js"></script>
+
+    <!-- Shared behavior for all chapters -->
+    <script src="chapter-template.js"></script>
+</body>
+</html>

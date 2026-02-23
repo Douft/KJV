@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Psalms 43 (KJV)</title>
+    <meta name="description" content="A serene presentation of Psalms Chapter 43 (KJV) with gentle ambient tone and enhanced visuals.">
+
+    <link href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,700;1,400&family=Great+Vibes&display=swap" rel="stylesheet">
+    <link href="chapter-template.css" rel="stylesheet">
+
+    <style>
+        :root { --bg-hue: 217; }
+    </style>
+</head>
+<body>
+    <audio id="narration" preload="auto">
+        <source src="../audio/19_Psalms/19108%200_KJV_Bible-Psalms043.mp3" type="audio/mpeg">
+
+        Your browser does not support the audio element.
+    </audio>
+
+    <div id="intro-screen">
+        <div id="intro-text">Psalms 43</div>
+        <div class="subtitle intro-hint">Click to listen</div>
+    </div>
+
+    <div id="main-container">
+        <h1><a href="index.html">Psalms 43</a></h1>
+        <p class="subtitle">King James Version (KJV)</p>
+
+        <div class="verses">
+            <p class="verse" id="v-19-043-001" data-verse-ref="KJV.19.043.001"><span class="verse-number">1</span>Judge me, O God, and plead my cause against an ungodly nation: O deliver me from the deceitful and unjust man.</p>
+            <p class="verse" id="v-19-043-002" data-verse-ref="KJV.19.043.002"><span class="verse-number">2</span>For thou art the God of my strength: why dost thou cast me off? why go I mourning because of the oppression of the enemy?</p>
+            <p class="verse" id="v-19-043-003" data-verse-ref="KJV.19.043.003"><span class="verse-number">3</span>O send out thy light and thy truth: let them lead me; let them bring me unto thy holy hill, and to thy tabernacles.</p>
+            <p class="verse" id="v-19-043-004" data-verse-ref="KJV.19.043.004"><span class="verse-number">4</span>Then will I go unto the altar of God, unto God my exceeding joy: yea, upon the harp will I praise thee, O God my God.</p>
+            <p class="verse" id="v-19-043-005" data-verse-ref="KJV.19.043.005"><span class="verse-number">5</span>Why art thou cast down, O my soul? and why art thou disquieted within me? hope in God: for I shall yet praise him, who is the health of my countenance, and my God.</p>
+        </div>
+
+        <div class="credits">
+            Verses: <a href="https://biblehub.com/" target="_blank" rel="noopener">BibleHub (KJV)</a>. Audio: <a href="https://mp3bible.ca/" target="_blank" rel="noopener">mp3bible.ca</a>. Thank you.
+        </div>
+
+        <div class="learn-more">
+            <a href="https://biblehub.com/kjv/psalms/43.htm" target="_blank">Learn more</a>
+        </div>
+
+        <div class="chapter-nav">
+            <a class="nav-btn" href="Psalms42.html">← Previous</a>
+            <a class="nav-btn" href="Psalms44.html">Next →</a>
+        </div>
+    </div>
+
+
+
+    <script src="../ambient-pad.js"></script>
+
+    <!-- Timing mode + auto-init (press `t` to toggle timing mode) -->
+    <script
+        src="../verse-timing-recorder.js"
+        data-doufts-autoinit
+        data-save-url="/api/timing"
+        data-book-folder="Psalms"
+        data-book-order="19"
+        data-chapter="43"
+        data-storage-key="doufts:kjv:19:43:highlightTimes"
+    ></script>
+
+    <!-- Shared behavior for all chapters -->
+    <script src="chapter-template.js"></script>
+</body>
+</html>

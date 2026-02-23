@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Psalms 128 (KJV)</title>
+    <meta name="description" content="A serene presentation of Psalms Chapter 128 (KJV) with gentle ambient tone and enhanced visuals.">
+
+    <link href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,700;1,400&family=Great+Vibes&display=swap" rel="stylesheet">
+    <link href="chapter-template.css" rel="stylesheet">
+
+    <style>
+        :root { --bg-hue: 192; }
+    </style>
+</head>
+<body>
+    <audio id="narration" preload="auto">
+        <source src="../audio/19_Psalms/19231%200_KJV_Bible-Psalms128.mp3" type="audio/mpeg">
+
+        Your browser does not support the audio element.
+    </audio>
+
+    <div id="intro-screen">
+        <div id="intro-text">Psalms 128</div>
+        <div class="subtitle intro-hint">Click to listen</div>
+    </div>
+
+    <div id="main-container">
+        <h1><a href="index.html">Psalms 128</a></h1>
+        <p class="subtitle">King James Version (KJV)</p>
+
+        <div class="verses">
+            <p class="verse" id="v-19-128-001" data-verse-ref="KJV.19.128.001"><span class="verse-number">1</span>A Song of degrees. Blessed is every one that feareth the LORD; that walketh in his ways.</p>
+            <p class="verse" id="v-19-128-002" data-verse-ref="KJV.19.128.002"><span class="verse-number">2</span>For thou shalt eat the labour of thine hands: happy shalt thou be, and it shall be well with thee.</p>
+            <p class="verse" id="v-19-128-003" data-verse-ref="KJV.19.128.003"><span class="verse-number">3</span>Thy wife shall be as a fruitful vine by the sides of thine house: thy children like olive plants round about thy table.</p>
+            <p class="verse" id="v-19-128-004" data-verse-ref="KJV.19.128.004"><span class="verse-number">4</span>Behold, that thus shall the man be blessed that feareth the LORD.</p>
+            <p class="verse" id="v-19-128-005" data-verse-ref="KJV.19.128.005"><span class="verse-number">5</span>The LORD shall bless thee out of Zion: and thou shalt see the good of Jerusalem all the days of thy life.</p>
+            <p class="verse" id="v-19-128-006" data-verse-ref="KJV.19.128.006"><span class="verse-number">6</span>Yea, thou shalt see thy children's children, and peace upon Israel.</p>
+        </div>
+
+        <div class="credits">
+            Verses: <a href="https://biblehub.com/" target="_blank" rel="noopener">BibleHub (KJV)</a>. Audio: <a href="https://mp3bible.ca/" target="_blank" rel="noopener">mp3bible.ca</a>. Thank you.
+        </div>
+
+        <div class="learn-more">
+            <a href="https://biblehub.com/kjv/psalms/128.htm" target="_blank">Learn more</a>
+        </div>
+
+        <div class="chapter-nav">
+            <a class="nav-btn" href="Psalms127.html">← Previous</a>
+            <a class="nav-btn" href="Psalms129.html">Next →</a>
+        </div>
+    </div>
+
+
+
+    <script src="../ambient-pad.js"></script>
+
+    <!-- Timing mode + auto-init (press `t` to toggle timing mode) -->
+    <script
+        src="../verse-timing-recorder.js"
+        data-doufts-autoinit
+        data-save-url="/api/timing"
+        data-book-folder="Psalms"
+        data-book-order="19"
+        data-chapter="128"
+        data-storage-key="doufts:kjv:19:128:highlightTimes"
+    ></script>
+
+    <!-- Shared behavior for all chapters -->
+    <script src="chapter-template.js"></script>
+</body>
+</html>

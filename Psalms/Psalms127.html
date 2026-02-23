@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Psalms 127 (KJV)</title>
+    <meta name="description" content="A serene presentation of Psalms Chapter 127 (KJV) with gentle ambient tone and enhanced visuals.">
+
+    <link href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,700;1,400&family=Great+Vibes&display=swap" rel="stylesheet">
+    <link href="chapter-template.css" rel="stylesheet">
+
+    <style>
+        :root { --bg-hue: 245; }
+    </style>
+</head>
+<body>
+    <audio id="narration" preload="auto">
+        <source src="../audio/19_Psalms/19230%200_KJV_Bible-Psalms127.mp3" type="audio/mpeg">
+
+        Your browser does not support the audio element.
+    </audio>
+
+    <div id="intro-screen">
+        <div id="intro-text">Psalms 127</div>
+        <div class="subtitle intro-hint">Click to listen</div>
+    </div>
+
+    <div id="main-container">
+        <h1><a href="index.html">Psalms 127</a></h1>
+        <p class="subtitle">King James Version (KJV)</p>
+
+        <div class="verses">
+            <p class="verse" id="v-19-127-001" data-verse-ref="KJV.19.127.001"><span class="verse-number">1</span>A Song of degrees for Solomon. Except the LORD build the house, they labour in vain that build it: except the LORD keep the city, the watchman waketh but in vain.</p>
+            <p class="verse" id="v-19-127-002" data-verse-ref="KJV.19.127.002"><span class="verse-number">2</span>It is vain for you to rise up early, to sit up late, to eat the bread of sorrows: for so he giveth his beloved sleep.</p>
+            <p class="verse" id="v-19-127-003" data-verse-ref="KJV.19.127.003"><span class="verse-number">3</span>Lo, children are an heritage of the LORD: and the fruit of the womb is his reward.</p>
+            <p class="verse" id="v-19-127-004" data-verse-ref="KJV.19.127.004"><span class="verse-number">4</span>As arrows are in the hand of a mighty man; so are children of the youth.</p>
+            <p class="verse" id="v-19-127-005" data-verse-ref="KJV.19.127.005"><span class="verse-number">5</span>Happy is the man that hath his quiver full of them: they shall not be ashamed, but they shall speak with the enemies in the gate.</p>
+        </div>
+
+        <div class="credits">
+            Verses: <a href="https://biblehub.com/" target="_blank" rel="noopener">BibleHub (KJV)</a>. Audio: <a href="https://mp3bible.ca/" target="_blank" rel="noopener">mp3bible.ca</a>. Thank you.
+        </div>
+
+        <div class="learn-more">
+            <a href="https://biblehub.com/kjv/psalms/127.htm" target="_blank">Learn more</a>
+        </div>
+
+        <div class="chapter-nav">
+            <a class="nav-btn" href="Psalms126.html">← Previous</a>
+            <a class="nav-btn" href="Psalms128.html">Next →</a>
+        </div>
+    </div>
+
+
+
+    <script src="../ambient-pad.js"></script>
+
+    <!-- Timing mode + auto-init (press `t` to toggle timing mode) -->
+    <script
+        src="../verse-timing-recorder.js"
+        data-doufts-autoinit
+        data-save-url="/api/timing"
+        data-book-folder="Psalms"
+        data-book-order="19"
+        data-chapter="127"
+        data-storage-key="doufts:kjv:19:127:highlightTimes"
+    ></script>
+
+    <!-- Shared behavior for all chapters -->
+    <script src="chapter-template.js"></script>
+</body>
+</html>
