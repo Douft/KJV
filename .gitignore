@@ -7,6 +7,9 @@
 # Audio library (kept out of git)
 audio/
 
+# Local workspace archive (not part of the published repo)
+_archive_local/
+
 # Python caches
 __pycache__/
 *.pyc
