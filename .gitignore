@@ -1,0 +1,9 @@
+# Local verse timing data (device-specific)
+.timings/
+
+# Audio library (kept out of git)
+audio/
+
+# Python caches
+__pycache__/
+*.pyc

@@ -146,6 +146,45 @@
       color: #ffefb0;
     }
 
+    .continueRow {
+      margin-top: 10px;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .continueText {
+      font-size: 13px;
+      color: #ffefb0;
+      opacity: 0.92;
+    }
+
+    .continueRow a,
+    .continueRow button {
+      display: inline-block;
+      padding: 9px 12px;
+      border-radius: 999px;
+      text-decoration: none;
+      color: #fef6d5;
+      border: 1px solid rgba(255, 215, 0, 0.22);
+      background: rgba(0,0,0,0.14);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .continueRow a:hover,
+    .continueRow button:hover {
+      border-color: rgba(255, 215, 0, 0.55);
+      box-shadow: 0 0 22px rgba(255, 215, 0, 0.14);
+    }
+
+    .continueRow button {
+      font-family: inherit;
+    }
+
     .panel {
       margin-top: 16px;
       border-radius: 28px;
@@ -294,6 +333,7 @@
         <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="Search: John 3, Psalm 23, Genesis 1, 1 Peter 2…" />
       </div>
       <div class="meta" id="meta">Loading…</div>
+      <div class="continueRow" id="continueRow"></div>
     </header>
 
     <div class="panel" id="panel"></div>
@@ -377,10 +417,116 @@
     const els = {
       q: document.getElementById('q'),
       meta: document.getElementById('meta'),
-      panel: document.getElementById('panel')
+      panel: document.getElementById('panel'),
+      continueRow: document.getElementById('continueRow')
     };
 
     const totalChapters = BOOKS.reduce((sum, b) => sum + b.chapters, 0);
+
+    // Guest progress: only store after explicit opt-in.
+    const PROGRESS_KEYS = {
+      consent: 'bi_progress_consent',
+      lastPath: 'bi_last_chapter_path'
+    };
+
+    let declinedThisSession = false;
+
+    function hasGuestProgressConsent() {
+      try {
+        return localStorage.getItem(PROGRESS_KEYS.consent) === '1';
+      } catch {
+        return false;
+      }
+    }
+
+    function setGuestProgressConsentYes() {
+      try {
+        localStorage.setItem(PROGRESS_KEYS.consent, '1');
+      } catch {
+        // ignore
+      }
+    }
+
+    function getStoredLastChapterPath() {
+      try {
+        return (localStorage.getItem(PROGRESS_KEYS.lastPath) || '').trim();
+      } catch {
+        return '';
+      }
+    }
+
+    function describeChapterPath(path) {
+      const raw = String(path || '').replace(/^\/+/, '');
+      const parts = raw.split('/').filter(Boolean);
+      if (parts.length < 2) return '';
+
+      const folder = parts[0];
+      const file = parts[1];
+      const book = BOOKS.find((b) => b.folder === folder);
+      const chMatch = String(file).match(/(\d+)\.html$/i);
+      const ch = chMatch ? Number(chMatch[1]) : null;
+      if (!book) return '';
+      if (!Number.isFinite(ch) || ch === null) return book.name;
+      return `${book.name} ${ch}`;
+    }
+
+    function renderContinueRow() {
+      if (!els.continueRow) return;
+      els.continueRow.innerHTML = '';
+
+      if (declinedThisSession) {
+        const msg = document.createElement('div');
+        msg.className = 'continueText';
+        msg.textContent = 'Progress will not be stored on this device.';
+        els.continueRow.appendChild(msg);
+        return;
+      }
+
+      if (!hasGuestProgressConsent()) {
+        const msg = document.createElement('div');
+        msg.className = 'continueText';
+        msg.textContent = 'Remember your place on this device? (Optional)';
+
+        const yes = document.createElement('button');
+        yes.type = 'button';
+        yes.textContent = 'Yes';
+        yes.addEventListener('click', () => {
+          setGuestProgressConsentYes();
+          renderContinueRow();
+        });
+
+        const no = document.createElement('button');
+        no.type = 'button';
+        no.textContent = 'No';
+        no.addEventListener('click', () => {
+          declinedThisSession = true;
+          renderContinueRow();
+        });
+
+        els.continueRow.appendChild(msg);
+        els.continueRow.appendChild(yes);
+        els.continueRow.appendChild(no);
+        return;
+      }
+
+      const lastPath = getStoredLastChapterPath();
+      if (!lastPath) {
+        const msg = document.createElement('div');
+        msg.className = 'continueText';
+        msg.textContent = 'Continue: no saved chapter yet.';
+        els.continueRow.appendChild(msg);
+        return;
+      }
+
+      const href = String(lastPath).replace(/^\/+/, '');
+      const label = describeChapterPath(href) || 'Continue';
+
+      const a = document.createElement('a');
+      a.href = href;
+      a.textContent = `Continue: ${label}`;
+      a.title = `Open ${label}`;
+      els.continueRow.appendChild(a);
+    }
 
     function norm(s) {
       return String(s || '')
@@ -528,6 +674,8 @@
       const raw = els.q.value || '';
       const q = norm(raw);
       els.panel.innerHTML = '';
+
+      renderContinueRow();
 
       if (!q) {
         els.panel.appendChild(buildDefaultView());

@@ -13,6 +13,29 @@
 
     const qs = new URLSearchParams(window.location.search || '');
     let autoplayEnabled = qs.get('bi_autoplay') === '1';
+
+    // Guest progress (stored only when user opted in on the Bible index page).
+    const PROGRESS_KEYS = {
+        consent: 'bi_progress_consent',
+        lastPath: 'bi_last_chapter_path'
+    };
+
+    function rememberGuestProgress() {
+        try {
+            if (localStorage.getItem(PROGRESS_KEYS.consent) !== '1') return;
+            const parts = (window.location.pathname || '').split('/').filter(Boolean);
+            if (parts.length < 2) return;
+            const folder = parts[parts.length - 2];
+            const file = parts[parts.length - 1];
+            if (!folder || !file) return;
+            localStorage.setItem(PROGRESS_KEYS.lastPath, `${folder}/${file}`);
+        } catch {
+            // ignore
+        }
+    }
+
+    rememberGuestProgress();
+
     let started = false;
 
     function readHighlightTimesFromJsonScript() {
