@@ -1,6 +1,9 @@
 # Local verse timing data (device-specific)
 .timings/
 
+# Local auth/admin state (device-specific)
+.app/
+
 # Audio library (kept out of git)
 audio/
 
