@@ -1,5 +1,19 @@
-(() => {
+﻿(() => {
     'use strict';
+
+    // Ensure the site favicon is set even when opening chapter pages directly.
+    (function ensureFavicon(){
+        try {
+            if (document.querySelector('link[rel~="icon"]')) return;
+            const link = document.createElement('link');
+            link.rel = 'icon';
+            link.href = '/favicon.svg';
+            link.type = 'image/svg+xml';
+            document.head.appendChild(link);
+        } catch {
+            // ignore
+        }
+    })();
 
     const introScreen = document.getElementById('intro-screen');
     const mainContainer = document.getElementById('main-container');
@@ -282,14 +296,10 @@
             harp.play().catch(() => {});
         }
 
-        if (highlightTimes.length > 0 && narration) {
-            // One verse at a time (no scrolling)
-            verses.forEach((v) => v.classList.add('hidden'));
-            showVerse(0);
-        } else {
-            // No timing data present — fall back to full chapter display.
-            showAllVersesScrollable();
-        }
+        // One verse at a time (no scrolling). If timing data exists, timeupdate will advance;
+        // otherwise it stays on verse 1 until you create timings.
+        verses.forEach((v) => v.classList.add('hidden'));
+        showVerse(0);
 
         if (narration) {
             narration.volume = 1;

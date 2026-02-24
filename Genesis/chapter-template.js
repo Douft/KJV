@@ -1,5 +1,19 @@
-(() => {
+﻿(() => {
     'use strict';
+
+    // Ensure the site favicon is set even when opening chapter pages directly.
+    (function ensureFavicon(){
+        try {
+            if (document.querySelector('link[rel~="icon"]')) return;
+            const link = document.createElement('link');
+            link.rel = 'icon';
+            link.href = '/favicon.svg';
+            link.type = 'image/svg+xml';
+            document.head.appendChild(link);
+        } catch {
+            // ignore
+        }
+    })();
 
     const introScreen = document.getElementById('intro-screen');
     const mainContainer = document.getElementById('main-container');
@@ -8,6 +22,8 @@
     const versesContainer = document.querySelector('.verses');
     const verses = Array.from(document.querySelectorAll('.verse'));
     const chapterNav = document.querySelector('.chapter-nav');
+    const timingScriptTag = document.querySelector('script[src$="verse-timing-recorder.js"][data-wait-for-first-n]');
+    const waitForFirstNToShowVerse = !!timingScriptTag;
 
     if (!introScreen || !mainContainer || !versesContainer || verses.length === 0) return;
 
@@ -62,6 +78,7 @@
     }
 
     let currentVerseIndex = -1;
+    let waitingForFirstVerseN = false;
 
     function fitVerseText(verseEl) {
         if (!verseEl || !versesContainer) return;
@@ -282,13 +299,13 @@
             harp.play().catch(() => {});
         }
 
-        if (highlightTimes.length > 0 && narration) {
-            // One verse at a time (no scrolling)
-            verses.forEach((v) => v.classList.add('hidden'));
-            showVerse(0);
+        // One verse at a time (no scrolling). If timing data exists, timeupdate will advance;
+        // otherwise it stays on verse 1 until you create timings.
+        verses.forEach((v) => v.classList.add('hidden'));
+        if (waitForFirstNToShowVerse) {
+            waitingForFirstVerseN = true;
         } else {
-            // No timing data present — fall back to full chapter display.
-            showAllVersesScrollable();
+            showVerse(0);
         }
 
         if (narration) {
@@ -310,6 +327,16 @@
         startExperience({ fromAutoplay: false });
     });
 
+    document.addEventListener('keydown', (e) => {
+        if (!waitingForFirstVerseN || !started) return;
+        const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+        if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+        if (String(e.key || '').toLowerCase() !== 'n') return;
+
+        waitingForFirstVerseN = false;
+        showVerse(0);
+    });
+
     // If coming from an autoplay chain, attempt to start automatically.
     if (autoplayEnabled) {
         updateIntroHint('Autoplay is on…');
@@ -320,6 +347,7 @@
 
     if (narration && highlightTimes.length > 0) {
         narration.addEventListener('timeupdate', () => {
+            if (waitingForFirstVerseN) return;
             showVerse(getVerseIndexForTime(narration.currentTime));
         });
 

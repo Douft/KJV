@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Cross">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff8d0"/>
+      <stop offset="0.55" stop-color="#ffd700"/>
+      <stop offset="1" stop-color="#e6b800"/>
+    </linearGradient>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.6" result="blur"/>
+      <feColorMatrix in="blur" type="matrix"
+        values="1 0 0 0 0
+                0 1 0 0 0
+                0 0 1 0 0
+                0 0 0 0.55 0" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Upright cross sized for favicon clarity -->
+  <path filter="url(#softGlow)" fill="url(#gold)" d="
+    M 28 8
+    H 36
+    V 22
+    H 48
+    V 30
+    H 36
+    V 56
+    H 28
+    V 30
+    H 16
+    V 22
+    H 28
+    Z
+  "/>
+</svg>

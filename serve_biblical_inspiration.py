@@ -24,6 +24,7 @@ import hashlib
 import hmac
 import json
 import secrets
+import socket
 import posixpath
 import re
 import sqlite3
@@ -194,6 +195,7 @@ def _html_page(*, title: str, body_html: str) -> bytes:
   <meta charset=\"utf-8\" />
   <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
   <title>{html_escape(title)}</title>
+    <link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\" />
   <style>
     :root {{ color-scheme: light dark; }}
     body {{ font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }}
@@ -302,13 +304,40 @@ def _app_nav(*, user: sqlite3.Row | None) -> str:
 class RewritingHandler(SimpleHTTPRequestHandler):
     # Python's handler serves from current working directory; we instead serve from ROOT_DIR.
 
-    def _send_json(self, obj: dict, *, status: int = 200) -> None:
+    def _timing_cors_headers(self) -> list[tuple[str, str]]:
+        # Allow phone tooling (and other origins) to call the timing API.
+        origin = (self.headers.get("Origin") or "").strip()
+        allow_origin = origin if origin else "*"
+        headers: list[tuple[str, str]] = [
+            ("Access-Control-Allow-Origin", allow_origin),
+            ("Access-Control-Allow-Methods", "GET, POST, OPTIONS"),
+            ("Access-Control-Allow-Headers", "Content-Type"),
+        ]
+        if origin:
+            headers.append(("Vary", "Origin"))
+        return headers
+
+    def _send_json(self, obj: dict, *, status: int = 200, extra_headers: list[tuple[str, str]] | None = None) -> None:
         raw = json.dumps(obj, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(raw)))
+        if extra_headers:
+            for k, v in extra_headers:
+                self.send_header(k, v)
         self.end_headers()
         self.wfile.write(raw)
+
+    def do_OPTIONS(self):
+        parsed = urllib.parse.urlparse(self.path)
+        if parsed.path == "/api/timing":
+            self.send_response(204)
+            for k, v in self._timing_cors_headers():
+                self.send_header(k, v)
+            self.end_headers()
+            return
+        self.send_response(404)
+        self.end_headers()
 
     def _read_json_body(self) -> dict | None:
         length = int(self.headers.get("Content-Length") or "0")
@@ -337,28 +366,28 @@ class RewritingHandler(SimpleHTTPRequestHandler):
                 book_order = int((qs.get("bookOrder") or qs.get("book_order") or [""])[0])
                 chapter = int((qs.get("chapter") or [""])[0])
             except Exception:
-                self._send_json({"error": "bookOrder and chapter are required"}, status=400)
+                self._send_json({"error": "bookOrder and chapter are required"}, status=400, extra_headers=self._timing_cors_headers())
                 return
 
             if book_order < 1 or book_order > 66 or chapter < 1:
-                self._send_json({"error": "invalid bookOrder/chapter"}, status=400)
+                self._send_json({"error": "invalid bookOrder/chapter"}, status=400, extra_headers=self._timing_cors_headers())
                 return
 
             p = self._timing_file_path(book_order=book_order, chapter=chapter)
             if not p.exists():
-                self._send_json({"ok": True, "times": None})
+                self._send_json({"ok": True, "times": None}, extra_headers=self._timing_cors_headers())
                 return
             try:
                 data = json.loads(p.read_text(encoding="utf-8"))
             except Exception:
-                self._send_json({"error": "timing file unreadable"}, status=500)
+                self._send_json({"error": "timing file unreadable"}, status=500, extra_headers=self._timing_cors_headers())
                 return
 
             if not isinstance(data, dict):
-                self._send_json({"error": "timing file invalid"}, status=500)
+                self._send_json({"error": "timing file invalid"}, status=500, extra_headers=self._timing_cors_headers())
                 return
 
-            self._send_json({"ok": True, **data})
+            self._send_json({"ok": True, **data}, extra_headers=self._timing_cors_headers())
             return
 
         return super().do_GET()
@@ -371,19 +400,19 @@ class RewritingHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/timing":
             data = self._read_json_body()
             if data is None:
-                self._send_json({"error": "invalid json"}, status=400)
+                self._send_json({"error": "invalid json"}, status=400, extra_headers=self._timing_cors_headers())
                 return
 
             try:
                 book_order = int(data.get("bookOrder") or data.get("book_order") or 0)
                 chapter = int(data.get("chapter") or 0)
             except Exception:
-                self._send_json({"error": "invalid bookOrder/chapter"}, status=400)
+                self._send_json({"error": "invalid bookOrder/chapter"}, status=400, extra_headers=self._timing_cors_headers())
                 return
 
             times = data.get("times")
             if not isinstance(times, list) or not times:
-                self._send_json({"error": "times must be a non-empty array"}, status=400)
+                self._send_json({"error": "times must be a non-empty array"}, status=400, extra_headers=self._timing_cors_headers())
                 return
 
             # Validate times are finite >= 0.
@@ -392,15 +421,15 @@ class RewritingHandler(SimpleHTTPRequestHandler):
                 try:
                     x = float(t)
                 except Exception:
-                    self._send_json({"error": "times must be numbers"}, status=400)
+                    self._send_json({"error": "times must be numbers"}, status=400, extra_headers=self._timing_cors_headers())
                     return
                 if not (x >= 0.0):
-                    self._send_json({"error": "times must be >= 0"}, status=400)
+                    self._send_json({"error": "times must be >= 0"}, status=400, extra_headers=self._timing_cors_headers())
                     return
                 cleaned.append(round(x, 3))
 
             if book_order < 1 or book_order > 66 or chapter < 1:
-                self._send_json({"error": "invalid bookOrder/chapter"}, status=400)
+                self._send_json({"error": "invalid bookOrder/chapter"}, status=400, extra_headers=self._timing_cors_headers())
                 return
 
             payload = {
@@ -419,10 +448,11 @@ class RewritingHandler(SimpleHTTPRequestHandler):
             p = self._timing_file_path(book_order=book_order, chapter=chapter)
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-            self._send_json({"ok": True, "saved": True})
+            self._send_json({"ok": True, "saved": True}, extra_headers=self._timing_cors_headers())
             return
 
-        return super().do_POST()
+        self.send_error(404)
+        return
 
     def _handle_app_get(self, parsed: urllib.parse.ParseResult) -> None:
         path = parsed.path
@@ -992,12 +1022,23 @@ class RewritingHandler(SimpleHTTPRequestHandler):
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--host", default="127.0.0.1")
+    ap.add_argument("--host", default="0.0.0.0")
     ap.add_argument("--port", type=int, default=8000)
     args = ap.parse_args()
 
     server = ThreadingHTTPServer((args.host, args.port), RewritingHandler)
     print(f"Serving {ROOT_DIR} at http://{args.host}:{args.port}/")
+    if args.host == "0.0.0.0":
+        try:
+            ips = sorted({ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if ip and not ip.startswith("127.")})
+        except Exception:
+            ips = []
+        if ips:
+            print("LAN URLs:")
+            for ip in ips:
+                print(f"  http://{ip}:{args.port}/")
+        else:
+            print("LAN URL: http://<your-pc-ip>:{}/".format(args.port))
     print("Example: /Mark/1  /Matthew/21  /Mark/")
     print("Timing API: /api/timing (GET/POST)")
     try:

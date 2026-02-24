@@ -69,6 +69,7 @@ def render_book_index(*, title: str, folder: str, chapters: list[int], bg_hue: i
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title} Index</title>
     <meta name="description" content="Index of {title} chapters (KJV).">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,700;1,400&family=Great+Vibes&display=swap" rel="stylesheet">
     <style>
         body {{
@@ -125,20 +126,22 @@ def render_book_index(*, title: str, folder: str, chapters: list[int], bg_hue: i
             opacity: 0.95;
             background:
                 radial-gradient(closest-side at 50% 42%, rgba(255, 215, 0, 0.18), transparent 70%),
-                linear-gradient(90deg,
+                linear-gradient(to right,
                     transparent calc(50% - var(--cross-w)),
                     rgba(255, 240, 190, 0.10) calc(50% - var(--cross-w)),
                     rgba(255, 215, 0, 0.34) 50%,
                     rgba(255, 240, 190, 0.10) calc(50% + var(--cross-w)),
                     transparent calc(50% + var(--cross-w))
                 ),
-                linear-gradient(180deg,
+                linear-gradient(to bottom,
                     transparent calc(34% - var(--cross-h)),
                     rgba(255, 240, 190, 0.10) calc(34% - var(--cross-h)),
                     rgba(255, 215, 0, 0.30) 34%,
                     rgba(255, 240, 190, 0.10) calc(34% + var(--cross-h)),
                     transparent calc(34% + var(--cross-h))
                 );
+            background-repeat: no-repeat;
+            background-size: 100% 100%;
             filter: drop-shadow(0 0 24px rgba(255, 215, 0, 0.20));
         }}
 

@@ -1,6 +1,25 @@
 (function () {
     'use strict';
 
+    // Layout safety: many chapter pages use `.verses { display:flex; }` without specifying
+    // a direction, and the default `row` will squish each verse side-by-side when a page
+    // falls back to showing the full chapter (no timing data).
+    // Force vertical stacking for chapter verse containers.
+    (function ensureVersesStackVertically() {
+        try {
+            if (!document.querySelector('.verses .verse')) return;
+            if (document.getElementById('douftsVersesLayoutFix')) return;
+            const style = document.createElement('style');
+            style.id = 'douftsVersesLayoutFix';
+            style.textContent = `
+                .verses { flex-direction: column; }
+            `;
+            (document.head || document.documentElement).appendChild(style);
+        } catch {
+            // ignore
+        }
+    })();
+
     function safeJsonParse(raw) {
         try {
             return JSON.parse(raw);
@@ -78,6 +97,15 @@
         const storageKey = options && options.storageKey;
         const defaultHighlightTimes = (options && options.defaultHighlightTimes) || [];
 
+        const saveUrl = options && options.saveUrl;
+        const bookFolder = options && options.bookFolder;
+        const bookOrder = options && options.bookOrder;
+        const chapter = options && options.chapter;
+
+        const bookOrderNum = (bookOrder != null && bookOrder !== '') ? Number(bookOrder) : null;
+        const chapterNum = (chapter != null && chapter !== '') ? Number(chapter) : null;
+        const canSubmitToServer = !!(saveUrl && Number.isFinite(bookOrderNum) && Number.isFinite(chapterNum));
+
         const autoAdvance = !!(options && options.autoAdvance);
         const singleVerseView = !!(options && options.singleVerseView);
         const scrollIntoViewOnAdvance = options && typeof options.scrollIntoViewOnAdvance === 'boolean'
@@ -110,6 +138,51 @@
             localStorage.setItem(storageKey, JSON.stringify(times));
         }
 
+        async function submitTimingsToServer(times) {
+            if (!canSubmitToServer) {
+                return { ok: false, error: 'No server saveUrl/bookOrder/chapter configured.' };
+            }
+            if (!Array.isArray(times) || times.length !== verseList.length) {
+                return { ok: false, error: 'Timings must include every verse.' };
+            }
+            if (!times.every(isFiniteNonNegativeNumber)) {
+                return { ok: false, error: 'Timings must be numbers ≥ 0.' };
+            }
+
+            try {
+                const audioDuration = (narration && Number.isFinite(narration.duration) && narration.duration > 0)
+                    ? Number(narration.duration.toFixed(3))
+                    : null;
+                const cleaned = times.map((t) => Number(Number(t).toFixed(3)));
+                const ranges = deriveVerseRanges(cleaned, audioDuration);
+
+                const payload = {
+                    bookFolder: bookFolder || null,
+                    bookOrder: bookOrderNum,
+                    chapter: chapterNum,
+                    verseCount: verseList.length,
+                    audioDuration,
+                    times: cleaned,
+                    ranges
+                };
+
+                const r = await fetch(String(saveUrl), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!r || !r.ok) {
+                    return { ok: false, error: `Server error (${r ? r.status : 'network'})` };
+                }
+
+                // Keep local state in sync so the chapter can immediately use the new timings.
+                setHighlightTimes(cleaned, true);
+                return { ok: true };
+            } catch (e) {
+                return { ok: false, error: (e && e.message) ? e.message : 'Network error' };
+            }
+        }
+
         function setHighlightTimes(times, persist = false) {
             if (!Array.isArray(times)) return;
             if (times.length !== verseList.length) return;
@@ -125,9 +198,25 @@
         let timingMode = false;
         let capturedTimes = [];
 
+        // When timing mode is active, suppress any other timeupdate listeners (e.g. chapter-template auto-advance)
+        // so verses don't move while you're recording timings.
+        try {
+            narration.addEventListener('timeupdate', (e) => {
+                if (!timingMode) return;
+                if (e && typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+                if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+            }, true);
+        } catch {
+            // ignore
+        }
+
         // Optional UI helpers for single-page timing.
         const originalDisplay = new WeakMap();
+        const originalClassState = new WeakMap();
+        let originalClassStateCaptured = false;
         let activeVerseIndex = -1;
+
+        const useClassVisibility = singleVerseView && verseList.every((v) => v && v.classList && v.classList.contains('verse'));
 
         function ensureTimingStyles() {
             if (document.getElementById('douftsTimingStyles')) return;
@@ -150,7 +239,13 @@
                 v.classList.toggle('doufts-timing-current', i === safeIndex);
                 v.setAttribute('data-doufts-timing-current', i === safeIndex ? 'true' : 'false');
 
-                if (singleVerseView) {
+                if (!singleVerseView) return;
+
+                if (useClassVisibility) {
+                    v.classList.toggle('hidden', i !== safeIndex);
+                    v.classList.toggle('visible', i === safeIndex);
+                    v.classList.toggle('highlight', i === safeIndex);
+                } else {
                     if (!originalDisplay.has(v)) {
                         originalDisplay.set(v, v.style.display);
                     }
@@ -176,7 +271,17 @@
             verseList.forEach((v) => {
                 v.classList.remove('doufts-timing-current');
                 v.setAttribute('data-doufts-timing-current', 'false');
-                if (singleVerseView && originalDisplay.has(v)) {
+
+                if (!singleVerseView) return;
+
+                if (useClassVisibility) {
+                    if (originalClassStateCaptured && originalClassState.has(v)) {
+                        const s = originalClassState.get(v);
+                        v.classList.toggle('hidden', !!s.hidden);
+                        v.classList.toggle('visible', !!s.visible);
+                        v.classList.toggle('highlight', !!s.highlight);
+                    }
+                } else if (originalDisplay.has(v)) {
                     v.style.display = originalDisplay.get(v) || '';
                 }
             });
@@ -205,9 +310,83 @@
         ].join(';');
         document.body.appendChild(timingHud);
 
+        let hudStatus = '';
+        let hudStatusKind = 'muted';
+
+        function setHudStatus(message, kind) {
+            hudStatus = message ? String(message) : '';
+            hudStatusKind = kind || 'muted';
+            if (timingMode) updateTimingHud();
+        }
+
+        function canEnterTimingMode() {
+            const main = document.getElementById('main-container');
+            if (main && !main.classList.contains('active')) return false;
+            return true;
+        }
+
+        const timingToggleBtn = (function createTimingToggle() {
+            try {
+                if (document.getElementById('douftsTimingToggle')) return null;
+                const btn = document.createElement('button');
+                btn.id = 'douftsTimingToggle';
+                btn.type = 'button';
+                btn.textContent = 'Timing';
+                btn.style.cssText = [
+                    'position:fixed',
+                    'right:12px',
+                    'bottom:96px',
+                    'z-index:9999',
+                    'padding:10px 12px',
+                    'border-radius:999px',
+                    'border:1px solid rgba(255,255,255,0.22)',
+                    'background:rgba(0,0,0,0.45)',
+                    'backdrop-filter:blur(10px)',
+                    'color:#fff',
+                    'font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif',
+                    'font-size:13px',
+                    'line-height:1',
+                    'cursor:pointer'
+                ].join(';');
+                btn.addEventListener('click', () => {
+                    if (!timingMode && !canEnterTimingMode()) return;
+                    setTimingMode(!timingMode, true);
+                });
+                document.body.appendChild(btn);
+                return btn;
+            } catch {
+                return null;
+            }
+        })();
+
+        function updateTimingToggleUi() {
+            if (!timingToggleBtn) return;
+            timingToggleBtn.textContent = timingMode ? 'Timing: ON' : 'Timing';
+            timingToggleBtn.style.opacity = timingMode ? '1' : '0.85';
+        }
+
         function updateTimingHud() {
             if (!timingMode) return;
             const nextVerse = Math.min(capturedTimes.length + 1, verseList.length);
+
+            const btnStyle = [
+                'padding:8px 10px',
+                'border-radius:999px',
+                'border:1px solid rgba(255,255,255,0.22)',
+                'background:rgba(255,255,255,0.10)',
+                'color:#fff',
+                'font-size:13px',
+                'cursor:pointer'
+            ].join(';');
+
+            const statusColor = (hudStatusKind === 'error') ? 'rgba(255,120,120,0.95)'
+                : (hudStatusKind === 'ok') ? 'rgba(160,255,180,0.95)'
+                    : 'rgba(255,255,255,0.85)';
+
+            const statusHtml = hudStatus
+                ? `<div style="margin-top:8px; color:${statusColor}; font-weight:600;">${hudStatus}</div>`
+                : '';
+
             timingHud.innerHTML =
                 `<strong>Timing mode</strong> — next: verse ${nextVerse}/${verseList.length} ` +
                 `• captured: ${capturedTimes.length}<br>` +
@@ -218,6 +397,15 @@
                 `<code style="opacity:.9">e</code> export • ` +
                 `<code style="opacity:.9">c</code> clear saved • ` +
                 `<code style="opacity:.9">t</code> exit` +
+                `<div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">` +
+                `<button type="button" data-action="record" style="${btnStyle}">Record</button>` +
+                `<button type="button" data-action="undo" style="${btnStyle}">Undo</button>` +
+                `<button type="button" data-action="save" style="${btnStyle}">Save</button>` +
+                (canSubmitToServer ? `<button type="button" data-action="submit" style="${btnStyle}">Submit</button>` : '') +
+                `<button type="button" data-action="export" style="${btnStyle}">Export</button>` +
+                `<button type="button" data-action="exit" style="${btnStyle}">Exit</button>` +
+                `</div>` +
+                statusHtml +
                 `<div style="margin-top:8px; opacity:.9">Output (press <code>e</code> to refresh):</div>` +
                 `<textarea id="timingOutput" readonly ` +
                 `style="width:100%; height:72px; margin-top:6px; resize:vertical; ` +
@@ -229,16 +417,118 @@
                 `</textarea>`;
         }
 
+        function captureNow() {
+            if (!timingMode) return;
+            if (capturedTimes.length >= verseList.length) return;
+            capturedTimes.push(Number(narration.currentTime.toFixed(3)));
+            setHudStatus('', 'muted');
+            updateTimingHud();
+
+            setActiveVerse(capturedTimes.length);
+
+            if (typeof onCapture === 'function') {
+                const index = capturedTimes.length - 1;
+                onCapture({
+                    index,
+                    nextIndex: capturedTimes.length,
+                    time: capturedTimes[index],
+                    capturedTimes: capturedTimes.slice(),
+                    capturedCount: capturedTimes.length,
+                    totalCount: verseList.length
+                });
+            }
+
+            if (capturedTimes.length === verseList.length) {
+                exportCapturedTimes();
+            }
+        }
+
+        function undoCapture() {
+            if (!timingMode) return;
+            if (!capturedTimes.length) return;
+            capturedTimes.pop();
+            setHudStatus('', 'muted');
+            updateTimingHud();
+
+            setActiveVerse(capturedTimes.length);
+
+            if (typeof onUndo === 'function') {
+                onUndo({
+                    nextIndex: capturedTimes.length,
+                    capturedTimes: capturedTimes.slice(),
+                    capturedCount: capturedTimes.length,
+                    totalCount: verseList.length
+                });
+            }
+        }
+
+        function saveCaptureToLocal() {
+            if (!timingMode) return;
+            if (capturedTimes.length !== verseList.length) {
+                setHudStatus('Save requires all verses captured.', 'error');
+                return;
+            }
+            saveHighlightTimes(capturedTimes);
+            highlightTimes = loadSavedHighlightTimes() || highlightTimes;
+            if (typeof onSave === 'function') {
+                onSave(highlightTimes.slice());
+            }
+            setHudStatus('Saved locally.', 'ok');
+            updateTimingHud();
+        }
+
+        async function submitCapture() {
+            if (!timingMode) return;
+            if (capturedTimes.length !== verseList.length) {
+                setHudStatus('Submit requires all verses captured.', 'error');
+                return;
+            }
+            setHudStatus('Submitting…', 'muted');
+            const res = await submitTimingsToServer(capturedTimes);
+            if (res && res.ok) {
+                setHudStatus('Submitted to server.', 'ok');
+            } else {
+                setHudStatus(res && res.error ? res.error : 'Submit failed.', 'error');
+            }
+        }
+
+        timingHud.addEventListener('click', (e) => {
+            const t = e && e.target;
+            if (!t || !t.closest) return;
+            const btn = t.closest('button[data-action]');
+            if (!btn) return;
+            const action = btn.getAttribute('data-action');
+            if (action === 'record') captureNow();
+            else if (action === 'undo') undoCapture();
+            else if (action === 'save') saveCaptureToLocal();
+            else if (action === 'submit') submitCapture();
+            else if (action === 'export') exportCapturedTimes();
+            else if (action === 'exit') setTimingMode(false, false);
+        });
+
         function setTimingMode(enabled, resetCapture = false) {
             timingMode = !!enabled;
             if (resetCapture) capturedTimes = [];
             timingHud.style.display = timingMode ? 'block' : 'none';
+            updateTimingToggleUi();
             if (timingMode) updateTimingHud();
+
+            if (timingMode && singleVerseView && useClassVisibility && !originalClassStateCaptured) {
+                verseList.forEach((v) => {
+                    originalClassState.set(v, {
+                        hidden: v.classList.contains('hidden'),
+                        visible: v.classList.contains('visible'),
+                        highlight: v.classList.contains('highlight')
+                    });
+                });
+                originalClassStateCaptured = true;
+            }
 
             if (timingMode) {
                 setActiveVerse(capturedTimes.length);
             } else {
                 clearActiveVerseUi();
+                originalClassStateCaptured = false;
             }
 
             if (typeof onTimingModeChange === 'function') {
@@ -299,6 +589,9 @@
 
             const key = e.key.toLowerCase();
             if (key === 't') {
+                if (!timingMode) {
+                    if (!canEnterTimingMode()) return;
+                }
                 setTimingMode(!timingMode, true);
                 return;
             }
@@ -306,56 +599,16 @@
             if (!timingMode) return;
 
             if (key === 'n') {
-                if (capturedTimes.length < verseList.length) {
-                    capturedTimes.push(Number(narration.currentTime.toFixed(3)));
-                    updateTimingHud();
-
-                    setActiveVerse(capturedTimes.length);
-
-                    if (typeof onCapture === 'function') {
-                        const index = capturedTimes.length - 1;
-                        onCapture({
-                            index,
-                            nextIndex: capturedTimes.length,
-                            time: capturedTimes[index],
-                            capturedTimes: capturedTimes.slice(),
-                            capturedCount: capturedTimes.length,
-                            totalCount: verseList.length
-                        });
-                    }
-
-                    if (capturedTimes.length === verseList.length) {
-                        exportCapturedTimes();
-                    }
-                }
+                captureNow();
             } else if (key === 'u') {
-                capturedTimes.pop();
-                updateTimingHud();
-
-                setActiveVerse(capturedTimes.length);
-
-                if (typeof onUndo === 'function') {
-                    onUndo({
-                        nextIndex: capturedTimes.length,
-                        capturedTimes: capturedTimes.slice(),
-                        capturedCount: capturedTimes.length,
-                        totalCount: verseList.length
-                    });
-                }
+                undoCapture();
             } else if (key === 'e') {
                 exportCapturedTimes();
             } else if (key === 's') {
-                if (capturedTimes.length === verseList.length) {
-                    saveHighlightTimes(capturedTimes);
-                    highlightTimes = loadSavedHighlightTimes() || highlightTimes;
-
-                    if (typeof onSave === 'function') {
-                        onSave(highlightTimes.slice());
-                    }
-                }
-                updateTimingHud();
+                saveCaptureToLocal();
             } else if (key === 'c') {
                 clearSaved();
+                setHudStatus('Cleared saved timings.', 'ok');
                 updateTimingHud();
             }
         });
@@ -372,7 +625,8 @@
             setHighlightTimes,
             setTimingMode,
             exportCapturedTimes,
-            clearSaved
+            clearSaved,
+            submitTimingsToServer
         };
     }
 
@@ -681,9 +935,64 @@
         return Number.isFinite(n) ? n : fallback;
     }
 
+    function attachDouftsTimingRecorderOnlyFromScriptTag(tag) {
+        try {
+            if (!tag || !tag.dataset) return null;
+            const storageKey = tag.dataset.storageKey;
+            if (!storageKey) return null;
+
+            const narration = document.getElementById('narration') || document.querySelector('audio');
+            const verses = Array.from(document.querySelectorAll('.verse'));
+            if (!narration || !verses.length) return null;
+
+            const defaultHighlightTimes = tryParseDefaultHighlightTimesFromPage(verses.length) || [];
+
+            const recorderApi = attachVerseTimingRecorder({
+                narration,
+                verses,
+                storageKey,
+                defaultHighlightTimes,
+                saveUrl: tag.dataset.saveUrl || undefined,
+                bookFolder: tag.dataset.bookFolder || undefined,
+                bookOrder: tag.dataset.bookOrder || undefined,
+                chapter: tag.dataset.chapter || undefined,
+                singleVerseView: true,
+                autoAdvance: true
+            });
+
+            return { recorderApi };
+        } catch {
+            return null;
+        }
+    }
+
     function autoInitDouftsChapterTemplateFromScriptTag() {
         const tag = findAutoInitScriptTag();
         if (!tag) return null;
+
+        // IMPORTANT: don't auto-init on normal chapter pages.
+        // Those pages already have their own per-book `chapter-template.js` controller.
+        // Running both causes duplicate event handlers and can contribute to audio glitches.
+        //
+        // If you want the recorder/template from this file, open the chapter with:
+        //   ?doufts_timing=1
+        // or set:
+        //   data-doufts-autoinit="timing"
+        try {
+            const v = String(tag.dataset.douftsAutoinit || '').trim().toLowerCase();
+            const qs = new URLSearchParams(window.location.search || '');
+            const enabledByQuery = qs.get('doufts_timing') === '1' || qs.get('doufts_recorder') === '1';
+            const enabledByValue = v === 'timing' || v === 'recorder' || v === 'true' || v === '1';
+            const hasPerBookTemplate = !!document.querySelector('script[src$="chapter-template.js"], script[src$="/chapter-template.js"]');
+
+            // Default: if a per-book template exists, do NOT auto-init the full controller.
+            // But DO auto-init the timing recorder (HUD + hotkeys) so chapters can be timed.
+            if (hasPerBookTemplate && !enabledByQuery && !enabledByValue) {
+                return attachDouftsTimingRecorderOnlyFromScriptTag(tag);
+            }
+        } catch {
+            return null;
+        }
 
         const opts = {
             storageKey: tag.dataset.storageKey || undefined,

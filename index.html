@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Holy Bible (KJV) — Index</title>
   <meta name="description" content="Search and open any KJV Bible chapter in canonical order." />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,700;1,400&family=Great+Vibes&display=swap" rel="stylesheet" />
   <style>
     :root {
@@ -59,20 +60,22 @@
       opacity: 0.95;
       background:
         radial-gradient(closest-side at 50% 42%, rgba(255, 215, 0, 0.18), transparent 70%),
-        linear-gradient(90deg,
+        linear-gradient(to right,
           transparent calc(50% - var(--cross-w)),
           rgba(255, 240, 190, 0.10) calc(50% - var(--cross-w)),
           rgba(255, 215, 0, 0.34) 50%,
           rgba(255, 240, 190, 0.10) calc(50% + var(--cross-w)),
           transparent calc(50% + var(--cross-w))
         ),
-        linear-gradient(180deg,
+        linear-gradient(to bottom,
           transparent calc(34% - var(--cross-h)),
           rgba(255, 240, 190, 0.10) calc(34% - var(--cross-h)),
           rgba(255, 215, 0, 0.30) 34%,
           rgba(255, 240, 190, 0.10) calc(34% + var(--cross-h)),
           transparent calc(34% + var(--cross-h))
         );
+      background-repeat: no-repeat;
+      background-size: 100% 100%;
       filter: drop-shadow(0 0 24px rgba(255, 215, 0, 0.20));
     }
 
@@ -322,6 +325,72 @@
     footer a:hover {
       border-bottom-color: rgba(255, 215, 0, 0.9);
     }
+
+    .accountDock {
+      position: fixed;
+      right: 14px;
+      bottom: 14px;
+      z-index: 4;
+    }
+
+    .accountDock summary {
+      list-style: none;
+      display: inline-block;
+      padding: 9px 12px;
+      border-radius: 999px;
+      text-decoration: none;
+      color: #fef6d5;
+      border: 1px solid rgba(255, 215, 0, 0.22);
+      background: rgba(0,0,0,0.14);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .accountDock summary::-webkit-details-marker { display: none; }
+    .accountDock summary::marker { content: ''; }
+
+    .accountDock[open] summary,
+    .accountDock summary:hover {
+      border-color: rgba(255, 215, 0, 0.55);
+      box-shadow: 0 0 22px rgba(255, 215, 0, 0.14);
+    }
+
+    .accountDockNav {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 18px;
+      background: rgba(0,0,0,0.14);
+      border: 1px solid rgba(255,255,255,0.18);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      display: grid;
+      gap: 8px;
+      min-width: 190px;
+    }
+
+    .accountDockNav a {
+      display: inline-block;
+      padding: 8px 10px;
+      border-radius: 999px;
+      text-decoration: none;
+      color: #fef6d5;
+      border: 1px solid rgba(255, 215, 0, 0.22);
+      background: rgba(0,0,0,0.14);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .accountDockNav a:hover {
+      border-color: rgba(255, 215, 0, 0.55);
+      box-shadow: 0 0 22px rgba(255, 215, 0, 0.14);
+    }
+
+    @media (max-width: 520px) {
+      .accountDock { right: 10px; bottom: 10px; }
+      .accountDockNav { min-width: 170px; }
+    }
   </style>
 </head>
 <body>
@@ -342,6 +411,17 @@
       Verses via <a href="https://biblehub.com/" target="_blank" rel="noopener noreferrer">BibleHub</a>. Audio narration thanks to <a href="https://mp3bible.ca/" target="_blank" rel="noopener noreferrer">mp3bible.ca</a>.
     </footer>
   </div>
+
+  <details class="accountDock">
+    <summary>Account</summary>
+    <nav class="accountDockNav" aria-label="Account">
+      <a href="/app/login">Login</a>
+      <a href="/app/register">Sign up</a>
+      <a href="/app/account">Account</a>
+      <a href="/app/plan">Plan</a>
+      <a href="/app/today">Today</a>
+    </nav>
+  </details>
 
   <script>
     // Canonical 66-book order, matching this site's folder naming.
