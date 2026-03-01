@@ -124,6 +124,14 @@
 
         const verseList = Array.from(verses);
 
+        function dispatchRecorderEvent(name, detail) {
+            try {
+                document.dispatchEvent(new CustomEvent(name, { detail: detail || {} }));
+            } catch {
+                // ignore
+            }
+        }
+
         function loadSavedHighlightTimes() {
             const raw = localStorage.getItem(storageKey);
             if (!raw) return null;
@@ -191,6 +199,37 @@
             if (persist) {
                 saveHighlightTimes(highlightTimes);
             }
+        }
+
+        function firstVerseLeadInTime(referenceTimes) {
+            const target = 1.0;
+            if (!Array.isArray(referenceTimes) || !referenceTimes.length) return target;
+            const first = Number(referenceTimes[0]);
+            if (!Number.isFinite(first)) return target;
+            if (first > target) return target;
+            return Math.max(0, Number((first - 0.05).toFixed(3)));
+        }
+
+        function buildTimesForPersistence(sourceTimes) {
+            const raw = Array.isArray(sourceTimes) ? sourceTimes.slice() : [];
+            if (!raw.every(isFiniteNonNegativeNumber)) return null;
+
+            // In recorder single-verse mode, users often capture the boundary where verse 2 starts.
+            // To keep chapter highlight-times aligned, inject verse 1 start near 1s and shift right.
+            const shouldInjectLeadIn = singleVerseView && autoAdvance;
+            if (!shouldInjectLeadIn) {
+                return (raw.length === verseList.length) ? raw : null;
+            }
+
+            if (raw.length === verseList.length - 1) {
+                return [firstVerseLeadInTime(raw), ...raw];
+            }
+
+            if (raw.length === verseList.length) {
+                return [firstVerseLeadInTime(raw), ...raw.slice(0, verseList.length - 1)];
+            }
+
+            return null;
         }
 
         let highlightTimes = loadSavedHighlightTimes() || defaultHighlightTimes.slice(0, verseList.length);
@@ -286,6 +325,44 @@
                 }
             });
             activeVerseIndex = -1;
+        }
+
+        function hideAllVersesInSingleVerseView() {
+            if (!singleVerseView) return;
+
+            verseList.forEach((v) => {
+                v.classList.remove('doufts-timing-current');
+                v.setAttribute('data-doufts-timing-current', 'false');
+
+                if (useClassVisibility) {
+                    v.classList.add('hidden');
+                    v.classList.remove('visible');
+                    v.classList.remove('highlight');
+                } else {
+                    if (!originalDisplay.has(v)) {
+                        originalDisplay.set(v, v.style.display);
+                    }
+                    v.style.display = 'none';
+                }
+            });
+
+            activeVerseIndex = -1;
+        }
+
+        function refreshActiveVerseForCaptureCount() {
+            if (!singleVerseView) {
+                const currentIndex = Math.min(capturedTimes.length, verseList.length - 1);
+                setActiveVerse(currentIndex);
+                return;
+            }
+
+            if (capturedTimes.length === 0) {
+                setActiveVerse(0);
+                return;
+            }
+
+            const currentIndex = Math.min(capturedTimes.length, verseList.length - 1);
+            setActiveVerse(currentIndex);
         }
 
         const timingHud = document.createElement('div');
@@ -424,7 +501,14 @@
             setHudStatus('', 'muted');
             updateTimingHud();
 
-            setActiveVerse(capturedTimes.length);
+            refreshActiveVerseForCaptureCount();
+
+            dispatchRecorderEvent('doufts:timing-capture', {
+                capturedCount: capturedTimes.length,
+                totalCount: verseList.length,
+                time: capturedTimes[capturedTimes.length - 1],
+                timingMode: timingMode
+            });
 
             if (typeof onCapture === 'function') {
                 const index = capturedTimes.length - 1;
@@ -450,7 +534,13 @@
             setHudStatus('', 'muted');
             updateTimingHud();
 
-            setActiveVerse(capturedTimes.length);
+            refreshActiveVerseForCaptureCount();
+
+            dispatchRecorderEvent('doufts:timing-undo', {
+                capturedCount: capturedTimes.length,
+                totalCount: verseList.length,
+                timingMode: timingMode
+            });
 
             if (typeof onUndo === 'function') {
                 onUndo({
@@ -464,29 +554,31 @@
 
         function saveCaptureToLocal() {
             if (!timingMode) return;
-            if (capturedTimes.length !== verseList.length) {
+            const preparedTimes = buildTimesForPersistence(capturedTimes);
+            if (!preparedTimes) {
                 setHudStatus('Save requires all verses captured.', 'error');
                 return;
             }
-            saveHighlightTimes(capturedTimes);
+            saveHighlightTimes(preparedTimes);
             highlightTimes = loadSavedHighlightTimes() || highlightTimes;
             if (typeof onSave === 'function') {
                 onSave(highlightTimes.slice());
             }
-            setHudStatus('Saved locally.', 'ok');
+            setHudStatus('Saved locally (with verse 1 lead-in).', 'ok');
             updateTimingHud();
         }
 
         async function submitCapture() {
             if (!timingMode) return;
-            if (capturedTimes.length !== verseList.length) {
+            const preparedTimes = buildTimesForPersistence(capturedTimes);
+            if (!preparedTimes) {
                 setHudStatus('Submit requires all verses captured.', 'error');
                 return;
             }
             setHudStatus('Submitting…', 'muted');
-            const res = await submitTimingsToServer(capturedTimes);
+            const res = await submitTimingsToServer(preparedTimes);
             if (res && res.ok) {
-                setHudStatus('Submitted to server.', 'ok');
+                setHudStatus('Submitted to server (with verse 1 lead-in).', 'ok');
             } else {
                 setHudStatus(res && res.error ? res.error : 'Submit failed.', 'error');
             }
@@ -525,7 +617,7 @@
             }
 
             if (timingMode) {
-                setActiveVerse(capturedTimes.length);
+                refreshActiveVerseForCaptureCount();
             } else {
                 clearActiveVerseUi();
                 originalClassStateCaptured = false;
@@ -538,17 +630,24 @@
                     totalCount: verseList.length
                 });
             }
+
+            dispatchRecorderEvent('doufts:timing-mode', {
+                enabled: timingMode,
+                capturedCount: capturedTimes.length,
+                totalCount: verseList.length
+            });
         }
 
         function exportCapturedTimes() {
-            const out = JSON.stringify(capturedTimes);
+            const exportTimes = buildTimesForPersistence(capturedTimes) || capturedTimes;
+            const out = JSON.stringify(exportTimes);
             console.log('Verse highlightTimes:', out);
 
             try {
                 const audioDuration = (narration && Number.isFinite(narration.duration) && narration.duration > 0)
                     ? narration.duration
                     : null;
-                const ranges = deriveVerseRanges(capturedTimes, audioDuration);
+                const ranges = deriveVerseRanges(exportTimes, audioDuration);
                 if (ranges.length) {
                     console.log('Verse ranges (derived):', JSON.stringify({ audioDuration, ranges }));
                 }

@@ -35,6 +35,8 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from html import escape as html_escape
 from pathlib import Path
 
+from apply_submitted_timing import apply_submission
+
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 ROOT_DIR = SCRIPT_DIR  # serve BiblicalInspiration/
@@ -317,6 +319,64 @@ class RewritingHandler(SimpleHTTPRequestHandler):
             headers.append(("Vary", "Origin"))
         return headers
 
+    def _clean_timing_times(self, times: object) -> list[float] | None:
+        if not isinstance(times, list) or not times:
+            return None
+        cleaned: list[float] = []
+        for t in times:
+            try:
+                x = float(t)
+            except Exception:
+                return None
+            if not (x >= 0.0):
+                return None
+            cleaned.append(round(x, 3))
+        return cleaned
+
+    def _timing_admin_list_items(self) -> list[dict]:
+        items: list[dict] = []
+        if not TIMINGS_DIR.exists():
+            return items
+
+        for book_dir in sorted(TIMINGS_DIR.iterdir(), key=lambda p: p.name):
+            if not book_dir.is_dir() or not book_dir.name.isdigit():
+                continue
+            for timing_file in sorted(book_dir.glob("*.json"), key=lambda p: p.name):
+                if not timing_file.is_file():
+                    continue
+                if not timing_file.stem.isdigit():
+                    continue
+
+                book_order = int(book_dir.name)
+                chapter = int(timing_file.stem)
+                item: dict = {
+                    "bookOrder": book_order,
+                    "chapter": chapter,
+                    "path": f"{book_dir.name}/{timing_file.name}",
+                    "updatedAt": int(timing_file.stat().st_mtime),
+                }
+
+                try:
+                    payload = json.loads(timing_file.read_text(encoding="utf-8"))
+                except Exception:
+                    payload = None
+
+                if isinstance(payload, dict):
+                    times = payload.get("times")
+                    if isinstance(times, list):
+                        item["timeCount"] = len(times)
+                    verse_count = payload.get("verseCount")
+                    if isinstance(verse_count, int):
+                        item["verseCount"] = verse_count
+                    book_folder = payload.get("bookFolder")
+                    if isinstance(book_folder, str) and book_folder.strip():
+                        item["bookFolder"] = book_folder.strip()
+
+                items.append(item)
+
+        items.sort(key=lambda x: (int(x.get("bookOrder", 0)), int(x.get("chapter", 0))))
+        return items
+
     def _send_json(self, obj: dict, *, status: int = 200, extra_headers: list[tuple[str, str]] | None = None) -> None:
         raw = json.dumps(obj, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
@@ -330,7 +390,7 @@ class RewritingHandler(SimpleHTTPRequestHandler):
 
     def do_OPTIONS(self):
         parsed = urllib.parse.urlparse(self.path)
-        if parsed.path == "/api/timing":
+        if parsed.path == "/api/timing" or parsed.path.startswith("/api/timing-admin/"):
             self.send_response(204)
             for k, v in self._timing_cors_headers():
                 self.send_header(k, v)
@@ -359,6 +419,39 @@ class RewritingHandler(SimpleHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/app" or parsed.path.startswith("/app/"):
             self._handle_app_get(parsed)
+            return
+        if parsed.path == "/api/timing-admin/list":
+            self._send_json({"ok": True, "items": self._timing_admin_list_items()}, extra_headers=self._timing_cors_headers())
+            return
+        if parsed.path == "/api/timing-admin/log":
+            qs = urllib.parse.parse_qs(parsed.query or "")
+            try:
+                book_order = int((qs.get("bookOrder") or qs.get("book_order") or [""])[0])
+                chapter = int((qs.get("chapter") or [""])[0])
+            except Exception:
+                self._send_json({"error": "bookOrder and chapter are required"}, status=400, extra_headers=self._timing_cors_headers())
+                return
+
+            if book_order < 1 or book_order > 66 or chapter < 1:
+                self._send_json({"error": "invalid bookOrder/chapter"}, status=400, extra_headers=self._timing_cors_headers())
+                return
+
+            p = self._timing_file_path(book_order=book_order, chapter=chapter)
+            if not p.exists():
+                self._send_json({"ok": True, "exists": False, "data": None}, extra_headers=self._timing_cors_headers())
+                return
+
+            try:
+                data = json.loads(p.read_text(encoding="utf-8"))
+            except Exception:
+                self._send_json({"error": "timing file unreadable"}, status=500, extra_headers=self._timing_cors_headers())
+                return
+
+            if not isinstance(data, dict):
+                self._send_json({"error": "timing file invalid"}, status=500, extra_headers=self._timing_cors_headers())
+                return
+
+            self._send_json({"ok": True, "exists": True, "data": data}, extra_headers=self._timing_cors_headers())
             return
         if parsed.path == "/api/timing":
             qs = urllib.parse.parse_qs(parsed.query or "")
@@ -397,6 +490,91 @@ class RewritingHandler(SimpleHTTPRequestHandler):
         if parsed.path.startswith("/app/"):
             self._handle_app_post(parsed)
             return
+        if parsed.path == "/api/timing-admin/log":
+            data = self._read_json_body()
+            if data is None:
+                self._send_json({"error": "invalid json"}, status=400, extra_headers=self._timing_cors_headers())
+                return
+
+            try:
+                book_order = int(data.get("bookOrder") or data.get("book_order") or 0)
+                chapter = int(data.get("chapter") or 0)
+            except Exception:
+                self._send_json({"error": "invalid bookOrder/chapter"}, status=400, extra_headers=self._timing_cors_headers())
+                return
+
+            payload = data.get("data")
+            if not isinstance(payload, dict):
+                self._send_json({"error": "data must be an object"}, status=400, extra_headers=self._timing_cors_headers())
+                return
+
+            cleaned = self._clean_timing_times(payload.get("times"))
+            if cleaned is None:
+                self._send_json({"error": "times must be a non-empty array of numbers >= 0"}, status=400, extra_headers=self._timing_cors_headers())
+                return
+
+            if book_order < 1 or book_order > 66 or chapter < 1:
+                self._send_json({"error": "invalid bookOrder/chapter"}, status=400, extra_headers=self._timing_cors_headers())
+                return
+
+            payload["bookOrder"] = book_order
+            payload["chapter"] = chapter
+            payload["times"] = cleaned
+
+            p = self._timing_file_path(book_order=book_order, chapter=chapter)
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            self._send_json({"ok": True, "saved": True}, extra_headers=self._timing_cors_headers())
+            return
+        if parsed.path == "/api/timing-admin/apply":
+            data = self._read_json_body()
+            if data is None:
+                self._send_json({"error": "invalid json"}, status=400, extra_headers=self._timing_cors_headers())
+                return
+
+            try:
+                book_order = int(data.get("bookOrder") or data.get("book_order") or 0)
+                chapter = int(data.get("chapter") or 0)
+            except Exception:
+                self._send_json({"error": "invalid bookOrder/chapter"}, status=400, extra_headers=self._timing_cors_headers())
+                return
+
+            if book_order < 1 or book_order > 66 or chapter < 1:
+                self._send_json({"error": "invalid bookOrder/chapter"}, status=400, extra_headers=self._timing_cors_headers())
+                return
+
+            book_folder = data.get("bookFolder")
+            if not isinstance(book_folder, str) or not book_folder.strip():
+                book_folder = None
+            else:
+                book_folder = book_folder.strip()
+
+            clear_timing_file = bool(data.get("clearTimingFile"))
+
+            try:
+                chapter_path = apply_submission(
+                    book_order=book_order,
+                    chapter=chapter,
+                    book_folder=book_folder,
+                    clear_timing_file=clear_timing_file,
+                )
+            except FileNotFoundError as exc:
+                self._send_json({"error": str(exc)}, status=404, extra_headers=self._timing_cors_headers())
+                return
+            except Exception as exc:
+                self._send_json({"error": str(exc)}, status=400, extra_headers=self._timing_cors_headers())
+                return
+
+            self._send_json(
+                {
+                    "ok": True,
+                    "applied": True,
+                    "chapterFile": str(chapter_path.relative_to(ROOT_DIR)).replace("\\", "/"),
+                    "clearedTimingFile": clear_timing_file,
+                },
+                extra_headers=self._timing_cors_headers(),
+            )
+            return
         if parsed.path == "/api/timing":
             data = self._read_json_body()
             if data is None:
@@ -410,23 +588,10 @@ class RewritingHandler(SimpleHTTPRequestHandler):
                 self._send_json({"error": "invalid bookOrder/chapter"}, status=400, extra_headers=self._timing_cors_headers())
                 return
 
-            times = data.get("times")
-            if not isinstance(times, list) or not times:
+            cleaned = self._clean_timing_times(data.get("times"))
+            if cleaned is None:
                 self._send_json({"error": "times must be a non-empty array"}, status=400, extra_headers=self._timing_cors_headers())
                 return
-
-            # Validate times are finite >= 0.
-            cleaned: list[float] = []
-            for t in times:
-                try:
-                    x = float(t)
-                except Exception:
-                    self._send_json({"error": "times must be numbers"}, status=400, extra_headers=self._timing_cors_headers())
-                    return
-                if not (x >= 0.0):
-                    self._send_json({"error": "times must be >= 0"}, status=400, extra_headers=self._timing_cors_headers())
-                    return
-                cleaned.append(round(x, 3))
 
             if book_order < 1 or book_order > 66 or chapter < 1:
                 self._send_json({"error": "invalid bookOrder/chapter"}, status=400, extra_headers=self._timing_cors_headers())
@@ -997,6 +1162,12 @@ class RewritingHandler(SimpleHTTPRequestHandler):
         parsed = urllib.parse.urlparse(path)
         p = parsed.path or "/"
 
+        # Compatibility: old chapter pages may request /Book/chapter-template.js.
+        # All books now share one script at /chapter-template.js.
+        if p.count("/") == 2 and p.endswith("/chapter-template.js"):
+            new_path = "/chapter-template.js"
+            return urllib.parse.urlunparse(parsed._replace(path=new_path))
+
         # /Book/<n> -> /Book/Book<n>.html
         m = _BOOK_CHAPTER_RE.match(p)
         if m:
@@ -1041,6 +1212,7 @@ def main() -> None:
             print("LAN URL: http://<your-pc-ip>:{}/".format(args.port))
     print("Example: /Mark/1  /Matthew/21  /Mark/")
     print("Timing API: /api/timing (GET/POST)")
+    print("Timing Admin API: /api/timing-admin/list, /api/timing-admin/log, /api/timing-admin/apply")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

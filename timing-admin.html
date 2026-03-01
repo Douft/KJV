@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Timing Admin</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 16px; line-height: 1.4; }
+    h1 { margin: 0 0 12px; font-size: 1.5rem; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
+    input, button, textarea { font: inherit; }
+    input[type="number"], input[type="text"] { width: 120px; padding: 6px; }
+    button { padding: 6px 10px; cursor: pointer; }
+    textarea { width: 100%; min-height: 380px; padding: 10px; box-sizing: border-box; }
+    #logs { border: 1px solid #ddd; padding: 8px; max-height: 220px; overflow: auto; }
+    #logs button { margin: 3px 4px 3px 0; }
+    #status { min-height: 24px; font-weight: 600; }
+    .small { font-size: 0.92rem; color: #444; }
+  </style>
+</head>
+<body>
+  <h1>Timing Admin</h1>
+
+  <div class="row">
+    <button id="refreshLogsBtn" type="button">Refresh Logs</button>
+    <span class="small" id="logCount"></span>
+  </div>
+
+  <div id="logs" aria-label="Timing logs"></div>
+
+  <div class="row" style="margin-top: 12px;">
+    <label>Book Order <input id="bookOrder" type="number" min="1" max="66" required></label>
+    <label>Chapter <input id="chapter" type="number" min="1" required></label>
+    <label>Book Folder (optional) <input id="bookFolder" type="text" placeholder="Genesis"></label>
+  </div>
+
+  <div class="row">
+    <button id="loadBtn" type="button">Load Log</button>
+    <button id="saveBtn" type="button">Save Log</button>
+    <button id="applyBtn" type="button">Apply to Chapter</button>
+    <label><input id="clearAfterApply" type="checkbox"> Clear timing file after apply</label>
+  </div>
+
+  <div id="status" aria-live="polite"></div>
+
+  <textarea id="editor" spellcheck="false" placeholder="Timing JSON will appear here..."></textarea>
+
+  <script>
+    const els = {
+      refreshLogsBtn: document.getElementById('refreshLogsBtn'),
+      logs: document.getElementById('logs'),
+      logCount: document.getElementById('logCount'),
+      bookOrder: document.getElementById('bookOrder'),
+      chapter: document.getElementById('chapter'),
+      bookFolder: document.getElementById('bookFolder'),
+      loadBtn: document.getElementById('loadBtn'),
+      saveBtn: document.getElementById('saveBtn'),
+      applyBtn: document.getElementById('applyBtn'),
+      clearAfterApply: document.getElementById('clearAfterApply'),
+      status: document.getElementById('status'),
+      editor: document.getElementById('editor'),
+    };
+
+    function setStatus(message, isError = false) {
+      els.status.textContent = message || '';
+      els.status.style.color = isError ? '#b00020' : '#0b5';
+    }
+
+    function getSelection() {
+      const bookOrder = Number(els.bookOrder.value);
+      const chapter = Number(els.chapter.value);
+      if (!Number.isInteger(bookOrder) || bookOrder < 1 || bookOrder > 66) {
+        throw new Error('Book order must be an integer 1-66.');
+      }
+      if (!Number.isInteger(chapter) || chapter < 1) {
+        throw new Error('Chapter must be an integer >= 1.');
+      }
+      return { bookOrder, chapter };
+    }
+
+    async function fetchJson(url, options) {
+      const response = await fetch(url, options);
+      let body = null;
+      try {
+        body = await response.json();
+      } catch {
+        body = null;
+      }
+      if (!response.ok) {
+        const message = body && body.error ? body.error : `Request failed (${response.status})`;
+        throw new Error(message);
+      }
+      return body;
+    }
+
+    async function refreshLogs() {
+      setStatus('Loading logs...');
+      const data = await fetchJson('/api/timing-admin/list');
+      const items = Array.isArray(data.items) ? data.items : [];
+      els.logCount.textContent = `${items.length} timing file(s)`;
+      els.logs.innerHTML = '';
+      if (!items.length) {
+        els.logs.textContent = 'No timing files found.';
+        setStatus('No logs found.');
+        return;
+      }
+
+      for (const item of items) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        const bo = String(item.bookOrder || '').padStart(2, '0');
+        const ch = String(item.chapter || '').padStart(3, '0');
+        const count = Number.isInteger(item.timeCount) ? ` • ${item.timeCount} times` : '';
+        const folder = item.bookFolder ? ` • ${item.bookFolder}` : '';
+        btn.textContent = `${bo}/${ch}${folder}${count}`;
+        btn.addEventListener('click', async () => {
+          els.bookOrder.value = String(item.bookOrder || '');
+          els.chapter.value = String(item.chapter || '');
+          if (item.bookFolder) {
+            els.bookFolder.value = item.bookFolder;
+          }
+          await loadLog();
+        });
+        els.logs.appendChild(btn);
+      }
+      setStatus('Logs loaded.');
+    }
+
+    async function loadLog() {
+      const { bookOrder, chapter } = getSelection();
+      setStatus(`Loading ${bookOrder}/${chapter}...`);
+      const data = await fetchJson(`/api/timing-admin/log?bookOrder=${bookOrder}&chapter=${chapter}`);
+      if (!data.exists) {
+        const empty = {
+          bookOrder,
+          chapter,
+          verseCount: 0,
+          audioDuration: null,
+          times: []
+        };
+        els.editor.value = JSON.stringify(empty, null, 2);
+        setStatus('No file exists yet. Created editable template.');
+        return;
+      }
+      els.editor.value = JSON.stringify(data.data, null, 2);
+      setStatus('Log loaded.');
+    }
+
+    async function saveLog() {
+      const { bookOrder, chapter } = getSelection();
+      let parsed;
+      try {
+        parsed = JSON.parse(els.editor.value);
+      } catch {
+        throw new Error('Editor content must be valid JSON.');
+      }
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('JSON must be an object.');
+      }
+
+      await fetchJson('/api/timing-admin/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookOrder,
+          chapter,
+          data: parsed,
+        }),
+      });
+      setStatus('Log saved.');
+      await refreshLogs();
+    }
+
+    async function applyLog() {
+      const { bookOrder, chapter } = getSelection();
+      const bookFolder = (els.bookFolder.value || '').trim();
+      const clearTimingFile = !!els.clearAfterApply.checked;
+
+      const res = await fetchJson('/api/timing-admin/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookOrder,
+          chapter,
+          bookFolder: bookFolder || null,
+          clearTimingFile,
+        }),
+      });
+
+      const chapterFile = res.chapterFile ? ` -> ${res.chapterFile}` : '';
+      setStatus(`Applied successfully${chapterFile}`);
+      await refreshLogs();
+      if (clearTimingFile) {
+        els.editor.value = '';
+      }
+    }
+
+    async function withStatus(action) {
+      try {
+        await action();
+      } catch (error) {
+        setStatus(error && error.message ? error.message : String(error), true);
+      }
+    }
+
+    els.refreshLogsBtn.addEventListener('click', () => withStatus(refreshLogs));
+    els.loadBtn.addEventListener('click', () => withStatus(loadLog));
+    els.saveBtn.addEventListener('click', () => withStatus(saveLog));
+    els.applyBtn.addEventListener('click', () => withStatus(applyLog));
+
+    withStatus(refreshLogs);
+  </script>
+</body>
+</html>

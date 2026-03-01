@@ -131,7 +131,16 @@
                 requestAnimationFrame(() => {
                     v.classList.add('visible');
                     v.classList.add('highlight');
-                    requestAnimationFrame(() => fitVerseText(v));
+                    requestAnimationFrame(() => {
+                        fitVerseText(v);
+                        if (typeof v.scrollIntoView === 'function') {
+                            try {
+                                v.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                            } catch {
+                                v.scrollIntoView();
+                            }
+                        }
+                    });
                 });
             } else {
                 v.classList.add('hidden');
@@ -286,14 +295,6 @@
         mainContainer.classList.add('active');
         buildControls();
 
-        // Optional code-generated ambient pad (no external music file).
-        try {
-            const startPad = window.douftsStartAmbientPad;
-            if (typeof startPad === 'function') startPad();
-        } catch {
-            // ignore
-        }
-
         if (harp) {
             harp.volume = 0.03;
             harp.play().catch(() => {});
@@ -327,11 +328,13 @@
         startExperience({ fromAutoplay: false });
     });
 
-    document.addEventListener('keydown', (e) => {
+    document.addEventListener('doufts:timing-capture', (e) => {
         if (!waitingForFirstVerseN || !started) return;
-        const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
-        if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
-        if (String(e.key || '').toLowerCase() !== 'n') return;
+        const detail = (e && e.detail) ? e.detail : null;
+        const capturedCount = detail && Number.isFinite(Number(detail.capturedCount))
+            ? Number(detail.capturedCount)
+            : 0;
+        if (capturedCount < 1) return;
 
         waitingForFirstVerseN = false;
         showVerse(0);
@@ -359,13 +362,6 @@
     if (narration) {
         narration.addEventListener('ended', () => {
             verses.forEach((v) => v.classList.remove('highlight'));
-
-            try {
-                const stopPad = window.douftsStopAmbientPad;
-                if (typeof stopPad === 'function') stopPad();
-            } catch {
-                // ignore
-            }
 
             if (!autoplayEnabled) return;
             const nextHref = getNextChapterHref();
